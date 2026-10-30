@@ -38,4 +38,14 @@ testpaths = ["tests"]
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+# ANN: annotated signatures. BLE: every broad `except Exception` needs a `noqa` with its reason.
+# T20: no print(). RUF100: no unused noqa comments.
+select = ["E", "F", "I", "UP", "B", "SIM", "ANN", "BLE", "T20", "RUF100"]
+# Any is allowed: tool arguments and JSON payloads are untyped by nature.
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use pytest fixtures and fakes; their signatures carry no contract.
+"tests/**" = ["ANN"]
+# The CLI writes the chat and the results to the terminal on purpose.
+"src/support_agent/adapters/inbound/cli.py" = ["T201"]
