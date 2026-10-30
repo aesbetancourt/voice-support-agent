@@ -34,7 +34,7 @@ class Settings:
     @classmethod
     def from_env(cls) -> Settings:
         load_dotenv(PROJECT_ROOT / ".env")
-        model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
         return cls(
             project_id=os.getenv("GOOGLE_CLOUD_PROJECT") or None,
             location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),

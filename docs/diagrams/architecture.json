@@ -68,7 +68,7 @@
       "id": "vertex",
       "type": "cloud",
       "label": "Vertex AI Gemini",
-      "sublabel": "3.8 Flash · 3.5 Flash-Lite",
+      "sublabel": "3.5 Flash · 3.5 Flash-Lite",
       "pos": [
         1300,
         40
