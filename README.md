@@ -301,7 +301,7 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 | Customer asks for a human, safety issue | `escalate_to_human` |
 | LLM calls tools in a loop (text channel) | Stopped after 6 rounds; the agent asks the customer to repeat |
 | Tool called after the conversation closed | Refused |
-| Gemini API errors (text channel, summaries) | Retried 3 times with backoff (`google-genai` retry options); then the chat stops and saves the record. In voice, Pipecat's Google services handle errors |
+| Gemini API errors (text channel, summaries) | Up to 3 attempts with backoff (`google-genai` retry options); then the chat stops and saves the record. In voice, Pipecat's Google services handle errors |
 | Summary call fails | Rule-based fallback summary |
 | Sentiment call fails or takes more than 5 s | The turn has no reading; the conversation continues normally |
 | Missing project or expired credentials | Clear message with the `gcloud` command to run |
@@ -309,7 +309,7 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 
 ## Testing
 
-- **`uv run pytest`** runs 151 tests in under a second, with no network. The folders mirror the layers:
+- **`uv run pytest`** runs 155 tests in under a second, with no network. The folders mirror the layers:
   - `tests/domain/`: validators (English and Spanish forms), every state-machine rule, and the frustration policy.
   - `tests/application/`: the tool executor, the sentiment monitor (including failures and timeouts), the message catalog in every language, and full conversations through the agent loop with a scripted `ChatModel`.
   - `tests/adapters/`: Gemini response parsing with a fake client, the voice tool handler, the voice guidance sender, the voice profiles for each language, and the live language switcher.

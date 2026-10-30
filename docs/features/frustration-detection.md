@@ -93,7 +93,7 @@ The guidance is an instruction for Ava, not customer speech. Each channel sends 
 
 | Channel | How the guidance reaches the model |
 |---|---|
-| Voice (Pipecat) | An `LLMMessagesAppendFrame` with a `developer` message and `run_llm=False`, so it shapes the next reply without triggering a new one |
+| Voice (Pipecat) | An `LLMMessagesAppendFrame` with a `developer` message and `run_llm=False`, so it shapes the next reply without triggering a new one. The text has the same marked note as below |
 | Text and simulations | A marked note before the customer's next message: `[Guidance for the agent, not said by the customer: …]` |
 
 The texts are in `application/prompts.py` (`FRUSTRATION_GUIDANCE`).
@@ -157,7 +157,7 @@ Each customer turn in `conversations/<id>.json` gets a `sentiment` object (from 
 
 The summary uses the readings:
 - **LLM summary:** each customer line in its input carries the score, for example `user (frustration 0.8): …`.
-- **Fallback summary:** `customer_sentiment` comes from the peak reading. A peak of 0.85 or more is `angry`, 0.5 or more is `frustrated`, and anything lower is `neutral`.
+- **Fallback summary:** `customer_sentiment` comes from the peak reading. A peak of 0.8 or more is `angry` (`ANGRY_PEAK`), 0.6 or more is `frustrated` (`FRUSTRATED_PEAK`), and anything lower is `neutral`. These match the classifier's scale.
 
 ---
 

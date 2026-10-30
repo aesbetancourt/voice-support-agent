@@ -110,7 +110,7 @@ Code:    normalizes it → "ORD-104233" → finds it in orders.json → OK
 Gemini:  "Thanks Maria, I see your headphones were delivered on October 16..."
 ```
 
-If the number does not exist, the code returns `{ok: false, error: "No order ORD-104323 exists"}`,
+If the number does not exist, the code returns `{ok: false, rejected: {order_number: "No order ORD-104323 exists…"}}`,
 and Gemini asks you again.
 
 ### The tools Gemini can call
@@ -270,7 +270,7 @@ voice-support-agent/
 │   ├── bootstrap.py             Connects the adapters to the ports
 │   └── config.py                Reads settings from .env
 │
-├── tests/                       151 tests, no internet needed. Same folders as the code
+├── tests/                       155 tests, no internet needed. Same folders as the code
 │   ├── domain/  application/  adapters/
 │   └── test_architecture.py     Checks that every import points inward
 ├── data/orders.json             10 fake orders

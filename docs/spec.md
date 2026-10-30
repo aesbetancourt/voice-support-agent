@@ -8,7 +8,7 @@ how the plan changed during the work, and what is still open.
 |---|---|
 | **Status** | All core requirements and deliverables met. Bonus features: 3 of 4 (RAG is not delivered, see [section 7](#7-not-delivered-rag-over-a-knowledge-base)). Open items listed in [section 8](#8-open-items) |
 | **Code** | `src/support_agent/`, hexagonal architecture ([diagram](diagrams/architecture.html)) |
-| **Tests** | 151 automated tests, no network. 7 live simulated personas, passing in English and Spanish |
+| **Tests** | 155 automated tests, no network. 7 live simulated personas, passing in English and Spanish |
 | **Repository** | <https://github.com/aesbetancourt/voice-support-agent> |
 | **Decisions** | [ADR-0001 to ADR-0009](adr/) |
 
@@ -110,10 +110,10 @@ The requirements stayed the same. The way to meet them changed as we found new f
 |---|---|---|---|---|
 | Use case | Support, scheduling or claims intake | E-commerce support with order lookup | Maps one to one to the brief, and adds validation against data | — |
 | LLM | Claude (only an Anthropic key was available) | Gemini on Vertex AI | GCP access became available, and the goal became one platform | [ADR-0002](adr/0002-google-cloud-only-stack.md) |
-| STT / TTS | Local MLX Whisper and Kokoro | Google Cloud STT and TTS only, with no fallback | Owner decision: "focus only on GCP" | [ADR-0002](adr/0002-google-cloud-only-stack.md) |
+| STT / TTS | Local MLX Whisper and Kokoro | Google Cloud STT and TTS only, with no fallback | Decision to keep one vendor and one auth method | [ADR-0002](adr/0002-google-cloud-only-stack.md) |
 | Voice pipeline | Cascaded, or Gemini Live | Cascaded STT → LLM → TTS | Matches the brief, and phrase hints help order numbers | [ADR-0003](adr/0003-cascaded-voice-pipeline.md) |
 | Frontend | A custom frontend was considered | Pipecat prebuilt UI in one Python process | One command to run, with no frontend build | [ADR-0004](adr/0004-pipecat-single-process-webrtc.md) |
-| Code structure | Flat package → three layers | Hexagonal (ports and adapters) | Owner preference; explicit boundaries | [ADR-0005](adr/0005-hexagonal-architecture.md) |
+| Code structure | Flat package → three layers | Hexagonal (ports and adapters) | Explicit boundaries, and each SDK isolated in one adapter | [ADR-0005](adr/0005-hexagonal-architecture.md) |
 | Conversation control | Pipecat Flows was evaluated | Our own state machine | Flows works only inside Pipecat, so the text channel could not share it | [ADR-0006](adr/0006-own-state-machine-not-pipecat-flows.md) |
 | Main model | `gemini-3.8-flash` (Pipecat's default) | `gemini-3.5-flash` | Voice replies were slow. Measured per model round: 2 to 20 s for 3.8 Flash, about 0.8 s for 3.5 Flash. 3.5 Flash passed 7/7 personas in English and Spanish | README → Known limitations |
 | Language choice | Fixed per conversation, with `--language` | Detected per utterance in voice calls, switched live | The prebuilt UI cannot pick a language, so a demo needed a restart per language. Chirp 3 detects `en-US` and `es-US` while streaming | [ADR-0009](adr/0009-detect-the-language-in-voice-calls.md) |
@@ -162,7 +162,7 @@ Details: [README → State machine](../README.md#state-machine).
 
 | Check | Result | Scope |
 |---|---|---|
-| Automated tests | 151 pass in under 1 second | Domain, application, adapters (with fakes), architecture rule |
+| Automated tests | 155 pass in under 1 second | Domain, application, adapters (with fakes), architecture rule |
 | Lint | `ruff check` clean | All of `src/` and `tests/` |
 | Simulated customers, English | 7/7 pass, live Gemini | Text channel, end to end |
 | Simulated customers, Spanish | 7/7 pass, live Gemini | Text channel, end to end |
