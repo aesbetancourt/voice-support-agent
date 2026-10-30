@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv
+
+# Local configuration and credentials
+.env
+*credentials*.json
+*service-account*.json
+
+# Conversation records (runtime output)
+conversations/
+
+.DS_Store

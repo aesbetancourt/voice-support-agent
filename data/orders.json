@@ -1,0 +1,102 @@
+[
+  {
+    "order_number": "ORD-104233",
+    "customer_name": "Maria Lopez",
+    "email": "maria.lopez@example.com",
+    "status": "delivered",
+    "items": ["Aurora wireless headphones"],
+    "total": 149.99,
+    "placed_on": "2026-10-12",
+    "delivered_on": "2026-10-16"
+  },
+  {
+    "order_number": "ORD-208871",
+    "customer_name": "James Carter",
+    "email": "james.carter@example.com",
+    "status": "shipped",
+    "items": ["Nimbus 27-inch monitor", "HDMI cable"],
+    "total": 329.0,
+    "placed_on": "2026-10-19",
+    "delivered_on": null
+  },
+  {
+    "order_number": "ORD-310552",
+    "customer_name": "Aisha Khan",
+    "email": "aisha.khan@example.com",
+    "status": "delivered",
+    "items": ["Pulse mechanical keyboard"],
+    "total": 89.5,
+    "placed_on": "2026-10-05",
+    "delivered_on": "2026-10-09"
+  },
+  {
+    "order_number": "ORD-412907",
+    "customer_name": "Daniel Kim",
+    "email": "daniel.kim@example.com",
+    "status": "delivered",
+    "items": ["Orbit smart watch", "Spare charging dock"],
+    "total": 219.0,
+    "placed_on": "2026-09-28",
+    "delivered_on": "2026-10-02"
+  },
+  {
+    "order_number": "ORD-523316",
+    "customer_name": "Sofia Rossi",
+    "email": "sofia.rossi@example.com",
+    "status": "returned",
+    "items": ["Echo portable speaker"],
+    "total": 74.99,
+    "placed_on": "2026-09-10",
+    "delivered_on": "2026-09-14"
+  },
+  {
+    "order_number": "ORD-600118",
+    "customer_name": "Liam O'Brien",
+    "email": "liam.obrien@example.com",
+    "status": "processing",
+    "items": ["Vertex gaming laptop"],
+    "total": 1499.0,
+    "placed_on": "2026-10-28",
+    "delivered_on": null
+  },
+  {
+    "order_number": "ORD-701245",
+    "customer_name": "Chen Wei",
+    "email": "chen.wei@example.com",
+    "status": "cancelled",
+    "items": ["Lumen desk lamp"],
+    "total": 39.99,
+    "placed_on": "2026-10-20",
+    "delivered_on": null
+  },
+  {
+    "order_number": "ORD-815530",
+    "customer_name": "Grace Okafor",
+    "email": "grace.okafor@example.com",
+    "status": "delivered",
+    "items": ["Volt power bank 20000 mAh", "USB-C cable"],
+    "total": 59.98,
+    "placed_on": "2026-10-14",
+    "delivered_on": "2026-10-17"
+  },
+  {
+    "order_number": "ORD-902664",
+    "customer_name": "Noah Fischer",
+    "email": "noah.fischer@example.com",
+    "status": "shipped",
+    "items": ["Halo webcam 4K"],
+    "total": 119.0,
+    "placed_on": "2026-10-24",
+    "delivered_on": null
+  },
+  {
+    "order_number": "ORD-123456",
+    "customer_name": "Emma Dubois",
+    "email": "emma.dubois@example.com",
+    "status": "delivered",
+    "items": ["Breeze tablet 11-inch", "Folio case"],
+    "total": 449.0,
+    "placed_on": "2026-10-01",
+    "delivered_on": "2026-10-06"
+  }
+]

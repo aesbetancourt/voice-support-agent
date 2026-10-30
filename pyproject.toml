@@ -1,0 +1,41 @@
+[project]
+name = "support-agent"
+version = "0.1.0"
+description = "Voice customer-support agent: Pipecat + Google Cloud STT/TTS + Gemini on Vertex AI"
+readme = "README.md"
+authors = [
+    { name = "Alejandro Sanchez", email = "aesbetancourt@outlook.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "google-genai>=2.34.0",
+    "loguru>=0.7.3",
+    "pipecat-ai[google,runner,silero,webrtc]>=1.15.0",
+    "pydantic>=2.14.2",
+    "python-dotenv>=1.2.4",
+]
+
+[project.scripts]
+support-agent = "support_agent.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.14,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1",
+    "ruff>=0.17.3",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

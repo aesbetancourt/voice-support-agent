@@ -1,0 +1,54 @@
+from support_agent.tools import TOOL_SPECS, ToolExecutor
+
+
+def test_tool_specs_have_valid_schemas():
+    names = [spec.name for spec in TOOL_SPECS]
+    assert len(names) == len(set(names))
+    for spec in TOOL_SPECS:
+        schema = spec.json_schema()
+        assert schema["type"] == "object"
+        assert set(spec.required) <= set(schema["properties"])
+
+
+def test_executor_records_calls_and_returns_payload(session):
+    calls = []
+    executor = ToolExecutor(session, on_call=lambda *args: calls.append(args))
+    outcome = executor.execute("lookup_order", {"order_number": "ORD-104233"})
+    assert outcome.payload["ok"]
+    assert not outcome.ends_conversation
+    assert calls[0][0] == "lookup_order"
+
+
+def test_unknown_tool_and_missing_arguments_are_errors(session):
+    executor = ToolExecutor(session)
+    assert "Unknown tool" in executor.execute("delete_everything", {}).payload["error"]
+    assert not executor.execute("lookup_order", {}).payload["ok"]
+
+
+def test_finalize_returns_fixed_closing_message(session):
+    executor = ToolExecutor(session)
+    executor.execute("lookup_order", {"order_number": "ORD-104233"})
+    executor.execute(
+        "update_ticket",
+        {"category": "shipping", "description": "Box arrived open and empty.", "urgency": "high"},
+    )
+    executor.execute("review_ticket", {})
+    outcome = executor.execute("finalize_ticket", {})
+    assert outcome.ends_conversation
+    assert session.ticket.ticket_id in outcome.closing_message
+
+
+def test_auto_escalation_ends_conversation(session):
+    executor = ToolExecutor(session)
+    outcomes = [executor.execute("lookup_order", {"order_number": "nope"}) for _ in range(3)]
+    assert not outcomes[1].ends_conversation
+    assert outcomes[2].ends_conversation
+    assert "human agent" in outcomes[2].closing_message
+
+
+def test_calls_after_close_are_rejected(session):
+    executor = ToolExecutor(session)
+    executor.execute("end_conversation", {"reason": "customer left"})
+    outcome = executor.execute("update_ticket", {"urgency": "high"})
+    assert outcome.payload["ok"] is False
+    assert "already ended" in outcome.payload["error"]
