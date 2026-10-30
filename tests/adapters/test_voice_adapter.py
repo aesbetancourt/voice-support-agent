@@ -3,14 +3,26 @@
 from types import SimpleNamespace
 
 import pytest
-from pipecat.frames.frames import EndWorkerFrame, LLMMessagesAppendFrame, TTSSpeakFrame
+from pipecat.frames.frames import (
+    EndWorkerFrame,
+    LLMMessagesAppendFrame,
+    TranscriptionFrame,
+    TTSSpeakFrame,
+    TTSUpdateSettingsFrame,
+)
+from pipecat.processors.frame_processor import FrameDirection
 
 from support_agent.adapters.inbound.voice import (
+    STT_LOCATION,
+    STT_MODEL,
     VOICE_PROFILES,
+    LanguageSwitcher,
     build_tools_schema,
+    language_switch_frames,
     make_guidance_sender,
     make_tool_handler,
     session_language,
+    stt_languages,
 )
 from support_agent.application.tools import TOOL_SPECS, ToolExecutor
 from support_agent.domain.models import Language
@@ -146,6 +158,69 @@ def test_session_language_comes_from_the_client_body(body, expected):
     assert session_language(runner_args, default=Language.EN) is expected
 
 
-def test_spanish_uses_chirp_3_in_a_regional_location():
-    profile = VOICE_PROFILES[Language.ES]
-    assert (profile.stt_model, profile.stt_location) == ("chirp_3", "us")
+def test_stt_uses_chirp_3_in_a_regional_location():
+    assert (STT_MODEL, STT_LOCATION) == ("chirp_3", "us")
+
+
+@pytest.mark.parametrize("language", list(Language))
+def test_stt_listens_for_every_language_with_the_session_language_first(language):
+    languages = stt_languages(language)
+    assert languages[0] is VOICE_PROFILES[language].stt_language
+    assert set(languages) == {profile.stt_language for profile in VOICE_PROFILES.values()}
+
+
+def test_a_language_switch_changes_the_voice_and_tells_the_llm():
+    tts_update, note = language_switch_frames(Language.ES)
+    assert isinstance(tts_update, TTSUpdateSettingsFrame)
+    assert tts_update.delta.voice == VOICE_PROFILES[Language.ES].tts_voice
+    assert isinstance(note, LLMMessagesAppendFrame)
+    assert note.run_llm is False
+    assert "speak only Spanish" in note.messages[0]["content"]
+
+
+def transcription(text, language_code):
+    return TranscriptionFrame(
+        text, "user", "2026-10-30T00:00:00Z", result=SimpleNamespace(language_code=language_code)
+    )
+
+
+async def run_switcher(frames):
+    switches, pushed = [], []
+
+    async def on_switch(language):
+        switches.append(language)
+
+    switcher = LanguageSwitcher(Language.EN, on_switch)
+
+    async def push_frame(frame, direction=FrameDirection.DOWNSTREAM):
+        pushed.append(frame)
+
+    switcher.push_frame = push_frame
+    switcher._check_started = lambda frame: True
+    for frame in frames:
+        await switcher.process_frame(frame, FrameDirection.DOWNSTREAM)
+    return switcher, switches, pushed
+
+
+async def test_switcher_follows_the_detected_language_before_the_words():
+    words = transcription("Hola, mis audífonos llegaron rotos", "es-US")
+    switcher, switches, pushed = await run_switcher([words])
+    assert switches == [Language.ES]
+    assert switcher.language is Language.ES
+    # The voice change and the LLM note go before the customer's words.
+    assert [type(f) for f in pushed] == [
+        TTSUpdateSettingsFrame,
+        LLMMessagesAppendFrame,
+        TranscriptionFrame,
+    ]
+
+
+async def test_switcher_ignores_the_same_language_and_short_replies():
+    frames = [
+        transcription("My headphones arrived broken", "en-US"),
+        transcription("Sí, gracias", "es-US"),
+    ]
+    switcher, switches, pushed = await run_switcher(frames)
+    assert switches == []
+    assert switcher.language is Language.EN
+    assert all(isinstance(f, TranscriptionFrame) for f in pushed)

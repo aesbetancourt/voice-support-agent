@@ -41,3 +41,10 @@ def test_executor_closes_in_the_session_language(session):
     executor = ToolExecutor(session, language=Language.ES)
     outcome = executor.execute("escalate_to_human", {"reason": "pide una persona"})
     assert outcome.closing_message.startswith("Ahora le transfiero con un agente humano")
+
+
+def test_voice_prompt_can_switch_language_and_keeps_every_register_rule():
+    prompt = system_prompt("voice", Language.EN, switchable=True)
+    assert "start in English" in prompt
+    assert "speak only" not in prompt.split("A developer note")[0]
+    assert '"usted", never "tú"' in prompt

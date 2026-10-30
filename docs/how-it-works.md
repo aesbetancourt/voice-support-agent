@@ -161,16 +161,18 @@ See [the feature document](features/frustration-detection.md) and [ADR-0007](adr
 
 ## 4c. Multiple languages
 
-Ava speaks English or Spanish. The language is fixed when the conversation starts (`--language es`,
-`DEFAULT_LANGUAGE`, or `{"language": "es"}` from a custom client). It selects:
+Ava speaks English or Spanish. The conversation starts in one language (`--language es`,
+`DEFAULT_LANGUAGE`, or `{"language": "es"}` from a custom client). In a voice call, the customer can change it
+at any time: one Chirp 3 recognizer listens for both languages, and a `LanguageSwitcher` processor after STT
+follows the detected language. The language selects:
 
-- a **voice profile**: STT language, model and location, TTS voice, phrase hints;
+- a **voice profile**: TTS voice and phrase hints;
 - the **prompt's language rules**, for example the formal "usted" in Spanish;
 - the **fixed closing messages**, translated in `application/messages.py`.
 
 The inside of the system stays in English: tool results, category and urgency values, and the summary.
-Gemini translates when it speaks. See [the feature document](features/multi-language.md) and
-[ADR-0008](adr/0008-language-fixed-per-conversation.md).
+Gemini translates when it speaks. See [the feature document](features/multi-language.md),
+[ADR-0008](adr/0008-language-fixed-per-conversation.md) and [ADR-0009](adr/0009-detect-the-language-in-voice-calls.md).
 
 ---
 

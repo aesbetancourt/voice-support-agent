@@ -9,7 +9,7 @@ The whole stack runs on Google Cloud:
 | Layer | Service |
 |---|---|
 | Transport | Pipecat SmallWebRTC (browser ↔ Python, peer-to-peer audio) |
-| Speech-to-text | Google Cloud Speech-to-Text (streaming, phrase hints): `latest_long` for English, `chirp_3` for Spanish |
+| Speech-to-text | Google Cloud Speech-to-Text `chirp_3` (streaming, phrase hints), detecting English or Spanish on each utterance |
 | LLM | Gemini on Vertex AI (`gemini-3.5-flash` by default) |
 | Text-to-speech | Google Cloud Text-to-Speech, Chirp 3 HD voices (`en-US`, `es-US`) |
 | Framework | [Pipecat](https://github.com/pipecat-ai/pipecat) 1.15 |
@@ -48,12 +48,17 @@ and [ADR-0007](docs/adr/0007-frustration-detection.md) records the options we co
 
 ## Languages
 
-Ava speaks **English** or **Spanish**. The language is fixed at the start of each conversation:
-`--language es` on any command, `DEFAULT_LANGUAGE` in `.env`, or `{"language": "es"}` in a custom client's
-session body. Each language has its own speech profile, prompt rules and fixed messages. Spanish uses the
-formal "usted". Tool results and the summary stay in English for the support team.
-See [docs/features/multi-language.md](docs/features/multi-language.md) and
-[ADR-0008](docs/adr/0008-language-fixed-per-conversation.md).
+Ava speaks **English** or **Spanish**.
+
+- **Voice calls switch live.** Speech recognition detects the language of each utterance. When the customer
+  changes language, Ava changes her voice, her replies and her closing message on the same turn.
+- **Text chat and simulations** use one language, set with `--language es` or `DEFAULT_LANGUAGE` in `.env`.
+  In voice calls, these settings choose only the greeting language.
+
+Spanish uses the formal "usted". Tool results and the summary stay in English for the support team.
+See [docs/features/multi-language.md](docs/features/multi-language.md),
+[ADR-0008](docs/adr/0008-language-fixed-per-conversation.md) and
+[ADR-0009](docs/adr/0009-detect-the-language-in-voice-calls.md).
 
 ## Setup
 
@@ -108,7 +113,7 @@ The key needs the *Vertex AI User* and *Cloud Speech Client* roles.
 | `uv run support-agent voice` | Starts the voice server. Open <http://localhost:7860> and click **Connect** |
 | `uv run support-agent chat` | Text chat in the terminal. Type `/quit` to leave |
 | `uv run support-agent simulate` | Runs seven simulated customers against the agent and prints PASS/FAIL |
-| `--language es` | Add it to any command above to run the conversation in Spanish |
+| `--language es` | Add it to `chat` or `simulate` to run the conversation in Spanish. On `voice`, it makes Ava greet in Spanish |
 | `uv run pytest` | Runs the unit and conversation tests (no network needed) |
 
 Example orders to try: `ORD-104233` (delivered headphones), `ORD-208871` (shipped monitor),
@@ -257,7 +262,8 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 [0005 hexagonal architecture](docs/adr/0005-hexagonal-architecture.md),
 [0006 no Pipecat Flows](docs/adr/0006-own-state-machine-not-pipecat-flows.md),
 [0007 frustration detection](docs/adr/0007-frustration-detection.md),
-[0008 language per conversation](docs/adr/0008-language-fixed-per-conversation.md).
+[0008 language per conversation](docs/adr/0008-language-fixed-per-conversation.md),
+[0009 live language switch in voice](docs/adr/0009-detect-the-language-in-voice-calls.md).
 
 | Decision | Reason |
 |---|---|
@@ -297,7 +303,7 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 - **`uv run pytest`** runs 127 tests in under a second, with no network. The folders mirror the layers:
   - `tests/domain/`: validators (English and Spanish forms), every state-machine rule, and the frustration policy.
   - `tests/application/`: the tool executor, the sentiment monitor (including failures and timeouts), the message catalog in every language, and full conversations through the agent loop with a scripted `ChatModel`.
-  - `tests/adapters/`: Gemini response parsing with a fake client, the voice tool handler, the voice guidance sender, and the voice profiles for each language.
+  - `tests/adapters/`: Gemini response parsing with a fake client, the voice tool handler, the voice guidance sender, the voice profiles for each language, and the live language switcher.
   - `tests/test_architecture.py`: one check per file that the layer imports only inward.
 - **`uv run support-agent simulate`** runs Gemini as seven customer personas against the real agent:
   cooperative, wrong order number first, correction during read-back, rambling, demands a human,
@@ -308,13 +314,13 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 
 | Area | Improvement |
 |---|---|
-| Speech | Use word confidence from Google STT to ask for a repeat before extraction. Try the Chirp 3 STT model. Add a custom phrase set with all valid order prefixes |
+| Speech | Use word confidence from Google STT to ask for a repeat before extraction. Add a custom phrase set with all valid order prefixes |
 | Sentiment | Add acoustic signals (tone, volume, speech rate) to the text-based frustration score. Tune the thresholds on real calls |
 | Latency | Measure time-to-first-audio per stage with Pipecat metrics. Try Gemini Live (speech-to-speech) on Vertex AI for lower latency, and compare extraction accuracy |
 | Knowledge (RAG) | Let Ava answer policy questions from a knowledge base of common issues, through a `KnowledgeBase` port and a Vertex AI RAG Engine adapter. Not part of this delivery: see [spec section 7](docs/spec.md#7-not-delivered-rag-over-a-knowledge-base) |
 | Identity | Verify the customer (email or postcode) against the order before sharing order details |
 | Conversation | Handle silence with a user-idle timeout. Support several problems in one call |
-| Languages | Detect the language from the first turn. Add a language selector to the browser client. Add more languages (see the steps in the feature document) |
+| Languages | Add live switching to the text channel. Add a language selector to the browser client for the greeting. Add more languages (see the steps in the feature document) |
 | Data | Replace the JSON files with a database by adding a new `ConversationStore` adapter (Firestore or Cloud SQL). Send tickets to a real helpdesk (Zendesk, Jira). Keep the call audio for quality review |
 | Evaluation | Run the simulated customers in CI, add more personas, and score the summaries with an LLM judge. Add audio-level evals with `pipecat eval` |
 | Production | Split the signaling server and the bot workers, so heavy calls scale separately. Deploy on Cloud Run. Use a TURN server for restrictive networks. Add tracing and dashboards |

@@ -1,5 +1,7 @@
 # Fix the language at the start of each conversation, with a speech profile per language
 
+> **Partly superseded by [ADR-0009](0009-detect-the-language-in-voice-calls.md):** voice calls now detect the language per utterance and switch live. The fixed language still applies to text chat and simulations.
+
 Each conversation has one language (English or Spanish), chosen before it starts: `{"language": "es"}` in the client's session body, otherwise `DEFAULT_LANGUAGE` (or the CLI option `--language`). The language selects a voice profile (STT language, STT model, STT location, TTS voice, phrase hints), the prompt's language rules, and the fixed customer messages. The internal language stays English: tool descriptions, tool results, enum values, sentiment reasons, and the summary for the support team.
 
 ## Considered Options

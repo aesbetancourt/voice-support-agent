@@ -176,3 +176,18 @@ def parse_language(raw: str) -> Language:
         return _LANGUAGE_ALIASES[key]
     allowed = ", ".join(lang.value for lang in Language)
     raise ValueError(f"'{raw}' is not a supported language. Supported: {allowed}.")
+
+
+# Short replies ("ok", "sí", "no") give unreliable language detection.
+MIN_WORDS_TO_SWITCH_LANGUAGE = 3
+
+
+def language_switch(current: Language, detected: str | None, transcript: str) -> Language | None:
+    """Return the new language if speech recognition detected a change, else None."""
+    if not detected or len(transcript.split()) < MIN_WORDS_TO_SWITCH_LANGUAGE:
+        return None
+    try:
+        language = parse_language(detected)
+    except ValueError:
+        return None
+    return language if language is not current else None

@@ -490,8 +490,8 @@
       "dot": "amber",
       "title": "Languages and sentiment",
       "items": [
-        "English or Spanish, fixed per conversation",
-        "Spanish STT uses chirp_3, English latest_long",
+        "English or Spanish, switched live in voice calls",
+        "Chirp 3 detects the language per utterance",
         "Flash-Lite rates frustration in the background"
       ]
     }

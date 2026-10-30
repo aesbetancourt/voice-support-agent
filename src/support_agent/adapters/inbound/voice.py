@@ -24,7 +24,9 @@ from pipecat.frames.frames import (
     FunctionCallResultProperties,
     LLMMessagesAppendFrame,
     LLMRunFrame,
+    TranscriptionFrame,
     TTSSpeakFrame,
+    TTSUpdateSettingsFrame,
 )
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
@@ -35,6 +37,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregatorParams,
     UserTurnStoppedMessage,
 )
+from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.utils import create_transport
 from pipecat.services.google.stt import GoogleSTTService
@@ -46,7 +49,11 @@ from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 
 from support_agent.adapters.outbound.gemini import make_client
-from support_agent.application.prompts import greeting_trigger, system_prompt
+from support_agent.application.prompts import (
+    greeting_trigger,
+    language_switch_note,
+    system_prompt,
+)
 from support_agent.application.sentiment import ANALYSIS_TIMEOUT_SECS, SentimentMonitor
 from support_agent.application.tools import TOOL_SPECS, ToolExecutor
 from support_agent.bootstrap import (
@@ -57,7 +64,14 @@ from support_agent.bootstrap import (
 )
 from support_agent.config import ConfigError, Settings
 from support_agent.domain.models import Category, Language
-from support_agent.domain.validators import parse_language
+from support_agent.domain.validators import language_switch, parse_language
+
+# One recognizer for every language: Chirp 3 detects the language of each utterance,
+# so the customer can switch during the call. It is served from regional locations only.
+# latest_long misheard fluent Spanish order numbers ("O R D, uno cero cuatro…" became
+# "o Rd 1004"); chirp_3 got them right in both languages. See ADR-0008 and ADR-0009.
+STT_MODEL = "chirp_3"
+STT_LOCATION = "us"
 
 
 @dataclass(frozen=True)
@@ -65,9 +79,6 @@ class VoiceProfile:
     """Speech settings for one conversation language."""
 
     stt_language: PipecatLanguage
-    # STT model and Google Cloud location. Chirp 3 is served from regional locations only.
-    stt_model: str
-    stt_location: str
     tts_voice: str
     # Phrases that speech recognition must favor: the order prefix and the category names.
     phrase_hints: list[dict[str, Any]]
@@ -76,8 +87,6 @@ class VoiceProfile:
 VOICE_PROFILES = {
     Language.EN: VoiceProfile(
         stt_language=PipecatLanguage.EN_US,
-        stt_model="latest_long",
-        stt_location="global",
         tts_voice="en-US-Chirp3-HD-Charon",
         phrase_hints=[
             {"value": "ORD", "boost": 15.0},
@@ -87,10 +96,6 @@ VOICE_PROFILES = {
     ),
     Language.ES: VoiceProfile(
         stt_language=PipecatLanguage.ES_US,
-        # latest_long misheard fluent Spanish order numbers ("O R D, uno cero cuatro…"
-        # became "o Rd 1004"); chirp_3 got them right. See ADR-0008.
-        stt_model="chirp_3",
-        stt_location="us",
         tts_voice="es-US-Chirp3-HD-Charon",
         phrase_hints=[
             {"value": "ORD", "boost": 15.0},
@@ -182,16 +187,69 @@ def make_guidance_sender(
     return send
 
 
+def tts_settings(language: Language) -> GoogleTTSService.Settings:
+    profile = VOICE_PROFILES[language]
+    # Set the language too: the service defaults its language code to en-US.
+    return GoogleTTSService.Settings(voice=profile.tts_voice, language=profile.stt_language)
+
+
+def stt_languages(language: Language) -> list[PipecatLanguage]:
+    """Every supported language, the session language first (Google's primary language)."""
+    others = [p.stt_language for lang, p in VOICE_PROFILES.items() if lang is not language]
+    return [VOICE_PROFILES[language].stt_language, *others]
+
+
+def language_switch_frames(language: Language) -> list[Frame]:
+    """Frames that move the rest of the pipeline to a new customer language."""
+    note = {"role": "developer", "content": language_switch_note(language)}
+    return [
+        TTSUpdateSettingsFrame(delta=tts_settings(language)),
+        # run_llm=False: the note shapes the reply to the turn that is in progress.
+        LLMMessagesAppendFrame(messages=[note], run_llm=False),
+    ]
+
+
+class LanguageSwitcher(FrameProcessor):
+    """Follow the language that speech recognition detects in each final transcript.
+
+    It sits between STT and the user aggregator, so the voice change and the note for
+    Gemini go downstream before the customer's words reach the LLM.
+    """
+
+    def __init__(
+        self,
+        language: Language,
+        on_switch: Callable[[Language], Awaitable[None]],
+    ):
+        super().__init__()
+        self.language = language
+        self._on_switch = on_switch
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+        await super().process_frame(frame, direction)
+        if isinstance(frame, TranscriptionFrame):
+            detected = getattr(frame.result, "language_code", None)
+            new_language = language_switch(self.language, detected, frame.text)
+            if new_language is not None:
+                self.language = new_language
+                for update in language_switch_frames(new_language):
+                    await self.push_frame(update, direction)
+                await self._on_switch(new_language)
+        await self.push_frame(frame, direction)
+
+
 def build_services(settings: Settings, language: Language):
     project_id = settings.require_project()
-    profile = VOICE_PROFILES[language]
+    hints = {
+        hint["value"]: hint for profile in VOICE_PROFILES.values() for hint in profile.phrase_hints
+    }
     adaptation = (
-        {"phrase_sets": [{"phrases": profile.phrase_hints}]} if settings.stt_phrase_hints else None
+        {"phrase_sets": [{"phrases": list(hints.values())}]} if settings.stt_phrase_hints else None
     )
     stt = GoogleSTTService(
-        location=profile.stt_location,
+        location=STT_LOCATION,
         settings=GoogleSTTService.Settings(
-            languages=[profile.stt_language], model=profile.stt_model, adaptation=adaptation
+            languages=stt_languages(language), model=STT_MODEL, adaptation=adaptation
         ),
     )
     llm = GoogleVertexLLMService(
@@ -199,14 +257,11 @@ def build_services(settings: Settings, language: Language):
         location=settings.location,
         settings=GoogleVertexLLMService.Settings(
             model=settings.model,
-            system_instruction=system_prompt("voice", language),
+            system_instruction=system_prompt("voice", language, switchable=True),
             temperature=0.4,
         ),
     )
-    # Set the language too: the service defaults its language code to en-US.
-    tts = GoogleTTSService(
-        settings=GoogleTTSService.Settings(voice=profile.tts_voice, language=profile.stt_language)
-    )
+    tts = GoogleTTSService(settings=tts_settings(language))
     return stt, llm, tts
 
 
@@ -238,6 +293,20 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         ),
     )
 
+    async def on_language_switch(new_language: Language) -> None:
+        # Closing messages and the saved record follow the customer's language.
+        conversation.executor.language = new_language
+        recorder.language = new_language
+        logger.info(f"Customer language switched to {new_language.value}")
+        try:
+            await worker.rtvi.send_server_message(
+                {"type": "language", "language": new_language.value}
+            )
+        except Exception as exc:  # noqa: BLE001 - the display is optional
+            logger.debug(f"Language switch not shown: {exc!r}")
+
+    switcher = LanguageSwitcher(language, on_language_switch)
+
     context = LLMContext(tools=build_tools_schema())
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
@@ -248,6 +317,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         [
             transport.input(),
             stt,
+            switcher,
             user_aggregator,
             llm,
             tts,

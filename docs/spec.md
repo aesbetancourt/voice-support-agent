@@ -10,7 +10,7 @@ how the plan changed during the work, and what is still open.
 | **Code** | `src/support_agent/`, hexagonal architecture ([diagram](diagrams/architecture.html)) |
 | **Tests** | 127 automated tests, no network. 7 live simulated personas, passing in English and Spanish |
 | **History** | 12 commits on `main` in a local Git repository. No remote yet |
-| **Decisions** | [ADR-0001 to ADR-0008](adr/) |
+| **Decisions** | [ADR-0001 to ADR-0009](adr/) |
 
 ---
 
@@ -57,7 +57,7 @@ Legend: ✅ done · 🟡 done with a caveat · ⬜ not done
 | 3.1 | Use Python | ✅ | Python 3.12, managed with `uv`. Ruff for lint and format | `pyproject.toml` |
 | 3.2 | Proper error handling | ✅ | Typed errors at each boundary: `ConfigError`, `GoogleAuthError`, `genai` `APIError`, `SessionClosedError`, timeouts on sentiment, fallback summary, partial saves on disconnect | README "Error handling" table |
 | 3.3 | An LLM chosen for the use case | ✅ | Gemini 3.5 Flash on Vertex AI for conversation turns and summaries, chosen for latency (see section 4). Gemini 3.5 Flash-Lite for per-turn sentiment | [ADR-0002](adr/0002-google-cloud-only-stack.md) |
-| 3.4 | A conversational AI platform or models for transcription and TTS | ✅ | Pipecat 1.15 with Google Cloud Speech-to-Text (`latest_long` for English, `chirp_3` for Spanish) and Text-to-Speech (Chirp 3 HD voices) | [ADR-0003](adr/0003-cascaded-voice-pipeline.md), [ADR-0004](adr/0004-pipecat-single-process-webrtc.md), [ADR-0008](adr/0008-language-fixed-per-conversation.md) |
+| 3.4 | A conversational AI platform or models for transcription and TTS | ✅ | Pipecat 1.15 with Google Cloud Speech-to-Text (`chirp_3`, detecting English or Spanish per utterance) and Text-to-Speech (Chirp 3 HD voices) | [ADR-0003](adr/0003-cascaded-voice-pipeline.md), [ADR-0004](adr/0004-pipecat-single-process-webrtc.md), [ADR-0008](adr/0008-language-fixed-per-conversation.md) |
 
 ### 2.4 Deliverables
 
@@ -82,7 +82,7 @@ Legend: ✅ done · 🟡 done with a caveat · ⬜ not done
 | **Fixed closing messages** | The ticket ID and the closing words come from code, so the LLM cannot invent a reference number | [ADR-0001](adr/0001-code-owns-the-ticket-state.md) |
 | **Escalation and end paths** | Transfer to a human on request, on a safety issue, or after three failures. The customer can also leave without a ticket | `application/tools.py` |
 | **Frustration detection** | Gemini Flash-Lite rates every customer turn in the background. A domain rule makes Ava acknowledge frustration, or offer a human once | [Feature doc](features/frustration-detection.md) · [ADR-0007](adr/0007-frustration-detection.md) |
-| **English and Spanish** | The language is fixed per conversation, with its own speech profile, prompt rules (formal "usted") and translated closing messages | [Feature doc](features/multi-language.md) · [ADR-0008](adr/0008-language-fixed-per-conversation.md) |
+| **English and Spanish, switched live** | In voice calls, speech recognition detects the language of each utterance, and Ava switches her voice, replies and closing messages on the same turn. Text chat uses one language. Spanish uses the formal "usted" | [Feature doc](features/multi-language.md) · [ADR-0008](adr/0008-language-fixed-per-conversation.md) |
 | **Text channel** | The same agent in the terminal, without audio, for fast and cheap testing | README → Run |
 | **Customer simulator** | Gemini plays 7 difficult customer personas against the real agent. Each persona has an expected outcome, and the command exits non-zero on failure | README → Testing |
 | **Hexagonal architecture, enforced** | Domain, application with ports, inbound and outbound adapters. A test fails if any layer imports outward | [ADR-0005](adr/0005-hexagonal-architecture.md) · `tests/test_architecture.py` |
@@ -104,7 +104,8 @@ The requirements stayed the same. The way to meet them changed as we found new f
 | Code structure | Flat package → three layers | Hexagonal (ports and adapters) | Owner preference; explicit boundaries | [ADR-0005](adr/0005-hexagonal-architecture.md) |
 | Conversation control | Pipecat Flows was evaluated | Our own state machine | Flows works only inside Pipecat, so the text channel could not share it | [ADR-0006](adr/0006-own-state-machine-not-pipecat-flows.md) |
 | Main model | `gemini-3.8-flash` (Pipecat's default) | `gemini-3.5-flash` | Voice replies were slow. Measured per model round: 2 to 20 s for 3.8 Flash, about 0.8 s for 3.5 Flash. 3.5 Flash passed 7/7 personas in English and Spanish | README → Known limitations |
-| Spanish STT | Same model as English (`latest_long`) | `chirp_3` for Spanish | `latest_long` misheard fluent Spanish order numbers in a measurement | [ADR-0008](adr/0008-language-fixed-per-conversation.md) |
+| Language choice | Fixed per conversation, with `--language` | Detected per utterance in voice calls, switched live | The prebuilt UI cannot pick a language, so a demo needed a restart per language. Chirp 3 detects `en-US` and `es-US` while streaming | [ADR-0009](adr/0009-detect-the-language-in-voice-calls.md) |
+| Spanish STT | Same model as English (`latest_long`) | `chirp_3` for Spanish, later for both languages (ADR-0009) | `latest_long` misheard fluent Spanish order numbers in a measurement | [ADR-0008](adr/0008-language-fixed-per-conversation.md) |
 
 ### Bugs found by live tests and fixed
 
@@ -154,6 +155,7 @@ Details: [README → State machine](../README.md#state-machine).
 | Simulated customers, Spanish | 7/7 pass, live Gemini | Text channel, end to end |
 | Frustration calibration | Calm 0.0, repetition 0.6, anger 0.8 | Live Flash-Lite on sample messages |
 | Gemini latency per model round | 3.8 Flash: 2 to 20 s, unstable. 3.5 Flash: about 0.8 s | One tool turn and one reply turn, `global` endpoint, 3 runs each |
+| Language detection, streaming | Chirp 3 with `en-US` + `es-US` detected both samples, with phrase hints | TTS audio through Pipecat's Google STT and the switcher, no microphone |
 | Spanish speech round trip | `chirp_3` streaming transcribed "ORD104233" correctly | TTS audio sent to STT, no microphone |
 | Voice call, English | Completed with a ticket, heard by the owner | Real microphone and browser |
 | Voice call, Spanish | Server starts. **Not yet tried with a microphone** | Startup only |
@@ -206,7 +208,7 @@ Steps to add it:
 |---|---|---|
 | Git remote | ⬜ Not created | Create the remote repository and push `main` |
 | Case brief in history | 🟡 The first commit still contains the brief, which is now ignored in `docs/private/` | Rewrite history before the first push, if the brief must not be public |
-| Spanish voice with a microphone | ⬜ Not tried | Run `support-agent voice --language es` and complete a call |
+| Live language switch with a microphone | ⬜ Tested with synthesized speech through the Pipecat pipeline only | Start `support-agent voice`, speak English, then switch to Spanish and complete a call |
 | RAG over a knowledge base | ⬜ Not delivered. Planned as a potential improvement | Follow the steps in [section 7](#7-not-delivered-rag-over-a-knowledge-base) |
 | Memory across calls | ⬜ Explored, then deferred | Needs a decision on identity verification before history is shown (see README → Potential improvements) |
 | Latency measurement | 🟡 Model latency measured and fixed by the switch to 3.5 Flash. The full voice turn is not measured | Read the Pipecat TTFB metrics per stage (STT, turn detection, LLM, TTS) from a real call |

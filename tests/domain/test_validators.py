@@ -2,6 +2,7 @@ import pytest
 
 from support_agent.domain.models import Category, Language, Urgency
 from support_agent.domain.validators import (
+    language_switch,
     normalize_order_number,
     parse_category,
     parse_language,
@@ -126,3 +127,19 @@ def test_parse_language(raw, expected):
 def test_parse_language_rejects_unsupported():
     with pytest.raises(ValueError, match="Supported: en, es"):
         parse_language("fr")
+
+
+@pytest.mark.parametrize(
+    ("current", "detected", "transcript", "expected"),
+    [
+        (Language.EN, "es-US", "Hola, mis audífonos llegaron rotos", Language.ES),
+        (Language.ES, "en-US", "My headphones arrived broken", Language.EN),
+        (Language.EN, "en-US", "My headphones arrived broken", None),
+        (Language.EN, "es-US", "Sí, gracias", None),
+        (Language.EN, "fr-FR", "Bonjour, mon casque est cassé", None),
+        (Language.EN, "", "Hola, mis audífonos llegaron rotos", None),
+        (Language.EN, None, "Hola, mis audífonos llegaron rotos", None),
+    ],
+)
+def test_language_switch(current, detected, transcript, expected):
+    assert language_switch(current, detected, transcript) is expected

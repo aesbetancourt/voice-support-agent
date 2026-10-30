@@ -59,6 +59,16 @@ If the customer speaks another language, answer in {language} and say that suppo
 available in {language} on this line.
 """
 
+# Voice: speech recognition detects the language of each utterance, so the customer can
+# switch. The channel sends language_switch_note() when the detected language changes.
+_SWITCHABLE_LANGUAGE_RULES = """\
+Language: start in {language}. The customer can speak {languages}.
+A developer note tells you when the customer's language changes. From then on, speak only
+that language. Do not switch on your own.
+These instructions, tool descriptions and tool results are in English: translate when you speak.
+Tool arguments stay as defined: category and urgency use their English values.
+"""
+
 
 # Register and style rules that a language needs beyond "speak this language".
 # They keep the LLM consistent with the fixed messages in messages.py.
@@ -95,8 +105,24 @@ def frustration_guidance(action: FrustrationAction, reason: str) -> str | None:
     return template.format(reason=reason.rstrip(".")) if template else None
 
 
-def system_prompt(channel: Literal["text", "voice"], language: Language = Language.EN) -> str:
+def language_switch_note(language: Language) -> str:
+    name = LANGUAGE_NAMES[language]
+    return f"The customer now speaks {name}. From now on, speak only {name}."
+
+
+def system_prompt(
+    channel: Literal["text", "voice"],
+    language: Language = Language.EN,
+    switchable: bool = False,
+) -> str:
+    """The agent prompt. ``switchable`` lets the language change during the conversation."""
     style = _VOICE_STYLE if channel == "voice" else _TEXT_STYLE
-    rules = _LANGUAGE_RULES.format(language=LANGUAGE_NAMES[language])
-    notes = _LANGUAGE_NOTES.get(language, "")
+    if not switchable:
+        rules = _LANGUAGE_RULES.format(language=LANGUAGE_NAMES[language])
+        return f"{_BASE_PROMPT}\n{style}\n{rules}{_LANGUAGE_NOTES.get(language, '')}"
+    rules = _SWITCHABLE_LANGUAGE_RULES.format(
+        language=LANGUAGE_NAMES[language],
+        languages=" or ".join(LANGUAGE_NAMES[lang] for lang in Language),
+    )
+    notes = "".join(f"In {LANGUAGE_NAMES[lang]}: {note}" for lang, note in _LANGUAGE_NOTES.items())
     return f"{_BASE_PROMPT}\n{style}\n{rules}{notes}"
