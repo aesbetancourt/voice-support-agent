@@ -1,0 +1,204 @@
+{
+  "id": "20261030T133757-651488cf",
+  "channel": "text",
+  "status": "completed",
+  "stage": "completed",
+  "started_at": "2026-10-30T13:37:57.050172Z",
+  "ended_at": "2026-10-30T13:37:57.052570Z",
+  "ticket": {
+    "ticket_id": "TCK-767119",
+    "order_number": "ORD-104233",
+    "customer_name": "Maria Lopez",
+    "category": "product_defect",
+    "description": "The left ear cup arrived cracked and the left speaker crackles.",
+    "urgency": "medium"
+  },
+  "order": {
+    "order_number": "ORD-104233",
+    "customer_name": "Maria Lopez",
+    "email": "maria.lopez@example.com",
+    "status": "delivered",
+    "items": [
+      "Aurora wireless headphones"
+    ],
+    "total": 149.99,
+    "placed_on": "2026-10-12",
+    "delivered_on": "2026-10-16"
+  },
+  "escalation_reason": null,
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hi, I'm Ava from Orbio Store. How can I help you today?",
+      "at": "2026-10-30T13:37:57.050178Z"
+    },
+    {
+      "role": "user",
+      "text": "Hi, my new headphones arrived broken.",
+      "at": "2026-10-30T13:37:57.050573Z"
+    },
+    {
+      "role": "assistant",
+      "text": "I'm sorry to hear that. Could you give me your order number?",
+      "at": "2026-10-30T13:37:57.050777Z"
+    },
+    {
+      "role": "user",
+      "text": "It's ORD 104 323.",
+      "at": "2026-10-30T13:37:57.050941Z"
+    },
+    {
+      "role": "assistant",
+      "text": "I could not find order ORD-104323. Could you check the number again?",
+      "at": "2026-10-30T13:37:57.051145Z"
+    },
+    {
+      "role": "user",
+      "text": "It is O R D one zero four two three three.",
+      "at": "2026-10-30T13:37:57.051303Z"
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Maria. I see your Aurora wireless headphones were delivered on October 16. What exactly is wrong with them?",
+      "at": "2026-10-30T13:37:57.051559Z"
+    },
+    {
+      "role": "user",
+      "text": "The left ear cup is cracked and the left speaker crackles.",
+      "at": "2026-10-30T13:37:57.051742Z"
+    },
+    {
+      "role": "assistant",
+      "text": "Here is your ticket: order ORD-104233, a product defect, the left ear cup arrived cracked and the left speaker crackles, medium urgency. Is that correct?",
+      "at": "2026-10-30T13:37:57.051939Z"
+    },
+    {
+      "role": "user",
+      "text": "Yes, that's correct.",
+      "at": "2026-10-30T13:37:57.052118Z"
+    },
+    {
+      "role": "assistant",
+      "text": "Your ticket is submitted. The reference is TCK-767119. Our team will contact you soon. Thank you for contacting Orbio Store. Goodbye!",
+      "at": "2026-10-30T13:37:57.052363Z"
+    }
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_order",
+      "arguments": {
+        "order_number": "ORD 104 323"
+      },
+      "result": {
+        "ok": false,
+        "rejected": {
+          "order_number": "No order ORD-104323 exists. Ask the customer to check the number."
+        },
+        "stage": "collecting",
+        "missing_fields": [
+          "order_number",
+          "category",
+          "description",
+          "urgency"
+        ]
+      },
+      "at": "2026-10-30T13:37:57.051142Z"
+    },
+    {
+      "name": "lookup_order",
+      "arguments": {
+        "order_number": "o r d one zero four two three three"
+      },
+      "result": {
+        "ok": true,
+        "order": {
+          "order_number": "ORD-104233",
+          "customer_name": "Maria Lopez",
+          "status": "delivered",
+          "items": [
+            "Aurora wireless headphones"
+          ],
+          "total": 149.99,
+          "placed_on": "2026-10-12",
+          "delivered_on": "2026-10-16"
+        },
+        "stage": "collecting",
+        "missing_fields": [
+          "category",
+          "description",
+          "urgency"
+        ]
+      },
+      "at": "2026-10-30T13:37:57.051555Z"
+    },
+    {
+      "name": "update_ticket",
+      "arguments": {
+        "category": "product_defect",
+        "description": "The left ear cup arrived cracked and the left speaker crackles.",
+        "urgency": "medium"
+      },
+      "result": {
+        "ok": true,
+        "accepted": {
+          "category": "product_defect",
+          "description": "The left ear cup arrived cracked and the left speaker crackles.",
+          "urgency": "medium"
+        },
+        "stage": "collecting",
+        "missing_fields": []
+      },
+      "at": "2026-10-30T13:37:57.051930Z"
+    },
+    {
+      "name": "review_ticket",
+      "arguments": {},
+      "result": {
+        "ok": true,
+        "instruction": "Read this ticket back to the customer and ask them to confirm it.",
+        "ticket": {
+          "order_number": "ORD-104233",
+          "customer_name": "Maria Lopez",
+          "category": "product_defect",
+          "description": "The left ear cup arrived cracked and the left speaker crackles.",
+          "urgency": "medium"
+        },
+        "stage": "confirming",
+        "missing_fields": []
+      },
+      "at": "2026-10-30T13:37:57.051937Z"
+    },
+    {
+      "name": "finalize_ticket",
+      "arguments": {},
+      "result": {
+        "ok": true,
+        "ticket_id": "TCK-767119",
+        "stage": "completed",
+        "missing_fields": []
+      },
+      "at": "2026-10-30T13:37:57.052360Z"
+    }
+  ],
+  "validation_events": [
+    {
+      "field": "order_number",
+      "value": "ORD-104323",
+      "error": "No order ORD-104323 exists. Ask the customer to check the number.",
+      "at": "2026-10-30T13:37:57.051135Z"
+    }
+  ],
+  "summary": {
+    "headline": "Ticket TCK-767119 opened for order ORD-104233.",
+    "key_points": [
+      "Order: ORD-104233",
+      "Category: product_defect",
+      "Urgency: medium",
+      "Description: The left ear cup arrived cracked and the left speaker crackles.",
+      "Ticket: TCK-767119"
+    ],
+    "customer_sentiment": "neutral",
+    "next_action": "Handle the ticket in the support queue.",
+    "generated_by": "fallback"
+  }
+}
