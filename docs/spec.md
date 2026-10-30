@@ -9,7 +9,7 @@ how the plan changed during the work, and what is still open.
 | **Status** | All core requirements met. Bonus features: 3 of 4 (RAG is not delivered, see [section 7](#7-not-delivered-rag-over-a-knowledge-base)). The demo video URL is still to add. Open items listed in [section 8](#8-open-items) |
 | **Code** | `src/support_agent/`, hexagonal architecture ([diagram](diagrams/architecture.html)) |
 | **Tests** | 151 automated tests, no network. 7 live simulated personas, passing in English and Spanish |
-| **History** | Commits on `main` in a local Git repository. No remote yet |
+| **Repository** | <https://github.com/aesbetancourt/voice-support-agent> |
 | **Decisions** | [ADR-0001 to ADR-0009](adr/) |
 
 ---
@@ -63,14 +63,14 @@ Legend: ✅ done · 🟡 done with a caveat · ⬜ not done
 
 | # | Deliverable | Status | How it is met | Evidence |
 |---|---|---|---|---|
-| 4.1 | Source code in a Git repository | 🟡 | A local Git repository. **No remote is created or pushed yet** | `git log` |
+| 4.1 | Source code in a Git repository | ✅ | Public on GitHub, with the full commit history | <https://github.com/aesbetancourt/voice-support-agent> |
 | 4.2 | README: setup instructions | ✅ | Prerequisites, `uv sync`, Google Cloud setup (APIs, ADC, quota project), the `.env` file, and the run commands | [README → Setup](../README.md#setup) |
 | 4.3 | README: system architecture overview | ✅ | Hexagonal view, voice runtime view, state machine, tools and project structure | [README → Architecture](../README.md#architecture) · [diagram](diagrams/architecture.html) |
 | 4.4 | README: key design decisions | ✅ | A decision table in the README, plus 9 ADRs that record the rejected alternatives | [README → Key design decisions](../README.md#key-design-decisions) · [ADRs](adr/) |
 | 4.5 | README: potential improvements | ✅ | A table by area: speech, sentiment, latency, knowledge (RAG), identity, conversation, languages, data, evaluation, production, security | [README → Potential improvements](../README.md#potential-improvements) |
 | 4.6 | URL to a demo video of sample conversations | ⬜ | To record. The script covers a full ticket, an invalid order number, frustration with escalation, and a live switch to Spanish | — |
 
-**Result: 16 of 18 items done. Item 4.1 has a caveat: the repository exists, but it is not pushed to a remote. Item 4.6, the demo video URL, is still to add.**
+**Result: 17 of 18 items done. Item 4.6, the demo video URL, is still to add.**
 
 ### 2.5 Bonus features (optional)
 
@@ -220,8 +220,6 @@ Steps to add it:
 
 | Item | State | Next step |
 |---|---|---|
-| Git remote | ⬜ Not created | Create the remote repository and push `main` |
-| Case brief in history | 🟡 The first commit still contains the brief, which is now ignored in `docs/private/` | Rewrite history before the first push, if the brief must not be public |
 | RAG over a knowledge base | ⬜ Not delivered. Planned as a potential improvement | Follow the steps in [section 7](#7-not-delivered-rag-over-a-knowledge-base) |
 | Demo video URL | ⬜ To record | Record the video, upload it, and add the URL to the README |
 | Memory across calls | ⬜ Explored, then deferred | Needs a decision on identity verification before history is shown (see README → Potential improvements) |
