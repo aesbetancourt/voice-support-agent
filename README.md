@@ -1,4 +1,4 @@
-# Orbio Store Support Agent
+# Acme Store Support Agent
 
 A voice customer-support agent for a fictional online electronics store.
 The customer talks to the agent in the browser. The agent collects the details of

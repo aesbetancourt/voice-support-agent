@@ -29,7 +29,7 @@
   "transcript": [
     {
       "role": "assistant",
-      "text": "Hi, I'm Ava from Orbio Store. How can I help you today?",
+      "text": "Hi, I'm Ava from Acme Store. How can I help you today?",
       "at": "2026-10-30T13:37:57.050178Z"
     },
     {
@@ -79,7 +79,7 @@
     },
     {
       "role": "assistant",
-      "text": "Your ticket is submitted. The reference is TCK-767119. Our team will contact you soon. Thank you for contacting Orbio Store. Goodbye!",
+      "text": "Your ticket is submitted. The reference is TCK-767119. Our team will contact you soon. Thank you for contacting Acme Store. Goodbye!",
       "at": "2026-10-30T13:37:57.052363Z"
     }
   ],

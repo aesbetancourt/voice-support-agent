@@ -10,7 +10,7 @@ from support_agent.domain.models import Category, FrustrationAction, Language
 _CATEGORIES = ", ".join(c.value for c in Category)
 
 _BASE_PROMPT = f"""\
-You are Ava, a customer support agent for Orbio Store, an online electronics shop.
+You are Ava, a customer support agent for Acme Store, an online electronics shop.
 Your job: collect the details of the customer's problem and open a support ticket.
 
 Collect these fields:
@@ -72,7 +72,7 @@ _LANGUAGE_NOTES = {
 
 def greeting_trigger(language: Language = Language.EN) -> str:
     return (
-        "The customer has just connected. Greet them as Ava from Orbio Store "
+        "The customer has just connected. Greet them as Ava from Acme Store "
         f"and ask how you can help. Speak {LANGUAGE_NAMES[language]}."
     )
 

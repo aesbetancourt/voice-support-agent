@@ -18,25 +18,25 @@ _CLOSING_MESSAGES = {
     Language.EN: {
         Stage.COMPLETED: (
             "Your ticket is submitted. The reference is {ticket_id}. "
-            "Our team will contact you soon. Thank you for contacting Orbio Store. Goodbye!"
+            "Our team will contact you soon. Thank you for contacting Acme Store. Goodbye!"
         ),
         Stage.ESCALATED: (
             "I am transferring you to a human agent now. "
             "They will see everything we discussed. Please hold."
         ),
-        Stage.ENDED: "Thank you for contacting Orbio Store. Goodbye!",
+        Stage.ENDED: "Thank you for contacting Acme Store. Goodbye!",
     },
     Language.ES: {
         Stage.COMPLETED: (
             "Su ticket está registrado. La referencia es {ticket_id}. "
             "Nuestro equipo se comunicará con usted pronto. "
-            "Gracias por contactar a Orbio Store. ¡Hasta luego!"
+            "Gracias por contactar a Acme Store. ¡Hasta luego!"
         ),
         Stage.ESCALATED: (
             "Ahora le transfiero con un agente humano. "
             "Verá todo lo que hablamos. Por favor, espere en línea."
         ),
-        Stage.ENDED: "Gracias por contactar a Orbio Store. ¡Hasta luego!",
+        Stage.ENDED: "Gracias por contactar a Acme Store. ¡Hasta luego!",
     },
 }
 

@@ -22,7 +22,7 @@ from support_agent.config import Settings
 from support_agent.domain.models import ConversationRecord, ConversationStatus, Language
 
 _CUSTOMER_RULES = """\
-You play a customer who contacts Orbio Store support by chat.
+You play a customer who contacts Acme Store support by chat.
 Stay in character. Write only the customer's next message, one or two sentences.
 Do not invent a new order number unless your persona says so.
 When the agent says goodbye or transfers you, write exactly: [END]

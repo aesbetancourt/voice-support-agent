@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Orbio Store Support Agent — Hexagonal Architecture",
+    "title": "Acme Store Support Agent — Hexagonal Architecture",
     "locale": "en",
     "output": "docs/diagrams/architecture.html",
     "quality_profile": "showcase"

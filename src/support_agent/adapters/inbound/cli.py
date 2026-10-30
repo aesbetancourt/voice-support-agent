@@ -38,7 +38,7 @@ async def run_chat(settings: Settings) -> None:
         make_sentiment_analyzer(settings, client),
     )
     agent = make_text_agent(settings, client, conversation)
-    print("Orbio Store support chat. Type /quit to leave.\n")
+    print("Acme Store support chat. Type /quit to leave.\n")
     # Config, auth and model errors show up here, before anything is saved.
     reply = await agent.greet()
     print(f"agent> {reply.text}\n")

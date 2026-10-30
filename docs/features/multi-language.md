@@ -27,12 +27,12 @@ Spanish uses the formal **"usted"** everywhere, both in Gemini's replies and in 
 The `cooperative` persona in Spanish (`support-agent simulate --language es`):
 
 ```
-ava:  ¡Hola! Soy Ava de Orbio Store. ¿En qué le puedo ayudar hoy?
+ava:  ¡Hola! Soy Ava de Acme Store. ¿En qué le puedo ayudar hoy?
 user: Hola Ava. Mi pedido ORD-104233 de auriculares inalámbricos llegó con una grieta…
 ava:  He registrado su pedido ORD-104233 por defecto de producto con urgencia media… ¿…?
 user: Sí, confirmo que todos los datos son correctos. Muchas gracias.
 ava:  Su ticket está registrado. La referencia es TCK-089413. Nuestro equipo se comunicará
-      con usted pronto. Gracias por contactar a Orbio Store. ¡Hasta luego!
+      con usted pronto. Gracias por contactar a Acme Store. ¡Hasta luego!
 ```
 
 The saved record has `"language": "es"`, the ticket has `"category": "product_defect"`, and the summary headline is in English.

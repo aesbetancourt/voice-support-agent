@@ -1,1 +1,1 @@
-"""Voice customer-support agent for the fictional Orbio Store."""
+"""Voice customer-support agent for the fictional Acme Store."""

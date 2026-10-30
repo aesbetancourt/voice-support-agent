@@ -1,4 +1,4 @@
-# Specification: Orbio Store Support Agent
+# Specification: Acme Store Support Agent
 
 This document compares the original case requirements with what the project delivers.
 It has a completion checklist for every requirement, the functionality added beyond the brief,
@@ -18,7 +18,7 @@ how the plan changed during the work, and what is still open.
 
 The brief asked for a conversational agent for a fictional business. The agent interviews customers, extracts structured information, validates it, stores the conversation and its data as JSON, and writes a summary. It must use Python, an LLM, and a speech-to-text and text-to-speech platform.
 
-The project delivers **Ava**, a voice customer-support agent for the fictional online shop *Orbio Store*:
+The project delivers **Ava**, a voice customer-support agent for the fictional online shop *Acme Store*:
 
 - **Ticket:** Ava collects an order number, a problem category, a description and an urgency level, and opens a validated support ticket.
 - **Channels:** customers talk to Ava by voice in the browser, or by text in the terminal.

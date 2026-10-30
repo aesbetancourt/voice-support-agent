@@ -234,7 +234,7 @@ flowchart LR
 ### The folders
 
 ```
-orbio-case/
+voice-support-agent/
 ├── src/support_agent/
 │   ├── domain/                  Pure rules. No AI, no audio, no files
 │   │   ├── models.py            Data shapes: Order, Ticket, ConversationRecord, Summary
