@@ -70,6 +70,9 @@ class ConversationRecorder:
     def turns_before(self, index: int, limit: int) -> list[Turn]:
         return list(self._transcript[max(0, index - limit) : index])
 
+    def sentiment_at(self, index: int) -> SentimentReading | None:
+        return self._transcript[index].sentiment
+
     def attach_sentiment(self, index: int, reading: SentimentReading) -> None:
         self._transcript[index].sentiment = reading
         if self._final is None:

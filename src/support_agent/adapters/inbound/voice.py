@@ -157,12 +157,20 @@ def make_guidance_sender(
     monitor: SentimentMonitor,
     is_closed: Callable[[], bool],
     queue_frames: Callable[[list[Frame]], Awaitable[None]],
+    on_reading: Callable[[int], Awaitable[None]] | None = None,
 ) -> Callable[[int | None, str], Awaitable[None]]:
     """Return a task body: rate one customer turn, then add any guidance to the LLM context."""
 
     async def send(turn_index: int | None, customer_text: str) -> None:
         guidance = await monitor.observe(turn_index, customer_text)
-        if guidance is None or is_closed():
+        if is_closed():
+            return
+        if on_reading is not None and turn_index is not None:
+            try:
+                await on_reading(turn_index)
+            except Exception as exc:  # noqa: BLE001 - the reading display is optional
+                logger.debug(f"Frustration reading not shown: {exc!r}")
+        if guidance is None:
             return
         # run_llm=False: the guidance shapes the next reply; it does not trigger a new one.
         message = {"role": "developer", "content": guidance}
@@ -264,11 +272,22 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         logger.info(f"Client disconnected from conversation {recorder.id}")
         await runner.cancel()
 
+    async def show_reading(turn_index: int) -> None:
+        # The prebuilt client lists server messages in its Events panel.
+        reading = recorder.sentiment_at(turn_index)
+        if reading is not None:
+            await worker.rtvi.send_server_message(
+                {"type": "frustration", "turn": turn_index, **reading.model_dump(mode="json")}
+            )
+
     # Frustration readings run in the background, so they never delay Ava's reply.
     sentiment_tasks: set[asyncio.Task[None]] = set()
     send_guidance = (
         make_guidance_sender(
-            conversation.sentiment, lambda: conversation.session.is_closed, worker.queue_frames
+            conversation.sentiment,
+            lambda: conversation.session.is_closed,
+            worker.queue_frames,
+            on_reading=show_reading,
         )
         if conversation.sentiment
         else None

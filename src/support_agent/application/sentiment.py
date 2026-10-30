@@ -61,4 +61,8 @@ class SentimentMonitor:
         action = self._policy.observe(draft.frustration)
         reading = SentimentReading(**draft.model_dump(), action=action)
         self._recorder.attach_sentiment(turn_index, reading)
+        logger.info(
+            f"Frustration {reading.frustration:.1f} on turn {turn_index} "
+            f"(action: {reading.action.value}): {reading.reason}"
+        )
         return frustration_guidance(action, reading.reason)

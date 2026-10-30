@@ -214,7 +214,11 @@ In the last full run, the five calm personas peaked at 0.0–0.3 and triggered n
 
 1. Run `uv run support-agent voice` and open <http://localhost:7860>.
 2. Sound annoyed for two turns in a row, for example: *"This is the third time I call about this!"*
-3. Ava acknowledges it, then offers a human. Check the readings in the newest file in `conversations/`.
+3. Ava acknowledges it, then offers a human.
+4. Open the **Events** panel in the browser client. Each reading appears as a `serverMessage` event:
+   `{"type": "frustration", "turn": 3, "frustration": 0.8, "reason": "…", "action": "acknowledge"}`.
+5. The server terminal also logs each reading: `Frustration 0.8 on turn 3 (action: acknowledge): …`.
+   The newest file in `conversations/` keeps all readings.
 
 ---
 

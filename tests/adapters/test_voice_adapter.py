@@ -92,6 +92,36 @@ async def test_no_guidance_after_the_call_closed():
     assert queued == []
 
 
+async def test_every_reading_is_shown_even_without_guidance():
+    shown = []
+
+    async def queue_frames(frames):
+        pass
+
+    async def on_reading(turn_index):
+        shown.append(turn_index)
+
+    send = make_guidance_sender(FixedMonitor(None), lambda: False, queue_frames, on_reading)
+    await send(3, "Thanks, that's all.")
+    assert shown == [3]
+
+
+async def test_a_failed_display_still_sends_the_guidance():
+    queued = []
+
+    async def queue_frames(frames):
+        queued.extend(frames)
+
+    async def on_reading(turn_index):
+        raise RuntimeError("client gone")
+
+    send = make_guidance_sender(
+        FixedMonitor("Acknowledge it."), lambda: False, queue_frames, on_reading
+    )
+    await send(0, "This is the third time!")
+    assert len(queued) == 1
+
+
 @pytest.mark.parametrize("language", list(Language))
 def test_every_language_has_a_matching_voice_profile(language):
     profile = VOICE_PROFILES[language]
