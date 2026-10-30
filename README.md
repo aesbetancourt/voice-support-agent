@@ -135,9 +135,9 @@ depends on nothing in the project. `tests/test_architecture.py` enforces this ru
 
 ![Architecture: inbound adapters, application core with ports, domain, outbound adapters and Google Cloud](docs/diagrams/architecture.png)
 
-> **Interactive version:** [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) is the same diagram as
-> one standalone page, with animated data flow, search, focus on a component, a dark theme, and PNG/SVG export.
-> GitHub shows HTML files as source code, so open it from a local clone, or download it and open it in a browser.
+> **Interactive version:** [open it in the browser](https://aesbetancourt.dev/voice-support-agent/diagrams/architecture.html). It is the same diagram as one standalone page
+> ([`docs/diagrams/architecture.html`](docs/diagrams/architecture.html)), with animated data flow, search, focus on a
+> component, a dark theme, and PNG/SVG export.
 > The diagram's source is [`docs/diagrams/architecture.json`](docs/diagrams/architecture.json), rendered with Archify.
 
 ```mermaid
