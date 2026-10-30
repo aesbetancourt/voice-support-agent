@@ -1,9 +1,10 @@
 import pytest
 
-from support_agent.domain.models import Category, Urgency
+from support_agent.domain.models import Category, Language, Urgency
 from support_agent.domain.validators import (
     normalize_order_number,
     parse_category,
+    parse_language,
     parse_urgency,
     validate_description,
 )
@@ -70,3 +71,58 @@ def test_description_is_cleaned_and_length_checked():
     with pytest.raises(ValueError, match="too short"):
         validate_description("broken")
     assert len(validate_description("x" * 5000)) == 1000
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "mi número de pedido es O R D uno cero cuatro dos tres tres",
+        "o erre de uno cero cuatro dos tres tres",
+        "ORD uno cero cuatro dos doble tres",
+        "Pedido: ORD-104233",
+        "NÚMERO ORD 104 233",
+    ],
+)
+def test_order_number_spanish_spoken_forms(raw):
+    assert normalize_order_number(raw) == "ORD-104233"
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Envío", Category.SHIPPING),
+        ("dañado", Category.PRODUCT_DEFECT),
+        ("Devolución", Category.RETURN_REFUND),
+        ("factura", Category.BILLING),
+    ],
+)
+def test_category_accepts_spanish_aliases(raw, expected):
+    assert parse_category(raw) is expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("urgente", Urgency.HIGH), ("Media", Urgency.MEDIUM), ("baja", Urgency.LOW)],
+)
+def test_urgency_accepts_spanish_aliases(raw, expected):
+    assert parse_urgency(raw) is expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("en", Language.EN),
+        ("es", Language.ES),
+        ("es-US", Language.ES),
+        ("en_US", Language.EN),
+        ("Spanish", Language.ES),
+        ("Español", Language.ES),
+    ],
+)
+def test_parse_language(raw, expected):
+    assert parse_language(raw) is expected
+
+
+def test_parse_language_rejects_unsupported():
+    with pytest.raises(ValueError, match="Supported: en, es"):
+        parse_language("fr")

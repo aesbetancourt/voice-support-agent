@@ -27,6 +27,7 @@ Use the recent conversation only as context. Rate the latest message.
 Scale: 0.0 calm or positive; 0.3 mildly annoyed; 0.6 clearly frustrated (complains,
 impatient, repeats themselves); 0.8 angry (blames, threatens to leave); 1.0 furious or abusive.
 The text comes from speech recognition and can contain errors. Errors are not frustration.
+The message can be in any language. Rate it the same way, and write the reason in English.
 The reason must have at most 12 words.
 """
 

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from support_agent.application.ports import ChatModel, FunctionCall, ModelReply
-from support_agent.application.prompts import GREETING_TRIGGER
+from support_agent.application.prompts import greeting_trigger
 from support_agent.application.recorder import ConversationRecorder
 from support_agent.application.sentiment import SentimentMonitor
 from support_agent.application.tools import ToolExecutor
@@ -44,7 +44,8 @@ class TextAgent:
 
     async def greet(self) -> AgentReply:
         # The greeting trigger is an instruction, not customer speech, so it is not recorded.
-        return await self._run(await self._model.send_text(GREETING_TRIGGER))
+        trigger = greeting_trigger(self._recorder.language)
+        return await self._run(await self._model.send_text(trigger))
 
     async def respond(self, user_text: str) -> AgentReply:
         turn_index = self._recorder.add_turn("user", user_text)

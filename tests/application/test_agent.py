@@ -16,6 +16,7 @@ from support_agent.application.tools import ToolExecutor
 from support_agent.domain.models import (
     ConversationStatus,
     FrustrationAction,
+    Language,
     Sentiment,
     SentimentDraft,
     Stage,
@@ -177,3 +178,16 @@ async def test_summary_fallback_uses_peak_frustration(make_agent):
     await agent.respond("This is ridiculous, I want my money back now!")
     record = await recorder.finish()
     assert record.summary.customer_sentiment is Sentiment.ANGRY
+
+
+async def test_record_keeps_the_conversation_language(orders, tmp_path):
+    session = TicketSession(orders.get)
+    recorder = ConversationRecorder(
+        "text", session, JsonConversationStore(tmp_path), SafeSummarizer(None), Language.ES
+    )
+    model = ScriptedModel([ModelReply(text="Hola, soy Ava.")])
+    agent = TextAgent(model, ToolExecutor(session, language=Language.ES), recorder)
+    await agent.greet()
+    record = await recorder.finish()
+    assert record.language is Language.ES
+    assert model.instructions == [None]

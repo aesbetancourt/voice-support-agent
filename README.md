@@ -9,9 +9,9 @@ The whole stack runs on Google Cloud:
 | Layer | Service |
 |---|---|
 | Transport | Pipecat SmallWebRTC (browser ↔ Python, peer-to-peer audio) |
-| Speech-to-text | Google Cloud Speech-to-Text (streaming, `latest_long`, phrase hints) |
+| Speech-to-text | Google Cloud Speech-to-Text (streaming, phrase hints): `latest_long` for English, `chirp_3` for Spanish |
 | LLM | Gemini on Vertex AI (`gemini-3.8-flash` by default) |
-| Text-to-speech | Google Cloud Text-to-Speech, Chirp 3 HD voice |
+| Text-to-speech | Google Cloud Text-to-Speech, Chirp 3 HD voices (`en-US`, `es-US`) |
 | Framework | [Pipecat](https://github.com/pipecat-ai/pipecat) 1.15 |
 
 The same agent also runs as a text chat in the terminal, for fast testing without audio.
@@ -44,6 +44,15 @@ A rule in the domain decides the reaction:
 Each reading is saved on its transcript turn (`sentiment`: score, reason, action), and the summary's
 `customer_sentiment` uses them. The full description is in [docs/features/frustration-detection.md](docs/features/frustration-detection.md),
 and [ADR-0007](docs/adr/0007-frustration-detection.md) records the options we compared.
+
+## Languages
+
+Ava speaks **English** or **Spanish**. The language is fixed at the start of each conversation:
+`--language es` on any command, `DEFAULT_LANGUAGE` in `.env`, or `{"language": "es"}` in a custom client's
+session body. Each language has its own speech profile, prompt rules and fixed messages. Spanish uses the
+formal "usted". Tool results and the summary stay in English for the support team.
+See [docs/features/multi-language.md](docs/features/multi-language.md) and
+[ADR-0008](docs/adr/0008-language-fixed-per-conversation.md).
 
 ## Setup
 
@@ -98,6 +107,7 @@ The key needs the *Vertex AI User* and *Cloud Speech Client* roles.
 | `uv run support-agent voice` | Starts the voice server. Open <http://localhost:7860> and click **Connect** |
 | `uv run support-agent chat` | Text chat in the terminal. Type `/quit` to leave |
 | `uv run support-agent simulate` | Runs seven simulated customers against the agent and prints PASS/FAIL |
+| `--language es` | Add it to any command above to run the conversation in Spanish |
 | `uv run pytest` | Runs the unit and conversation tests (no network needed) |
 
 Example orders to try: `ORD-104233` (delivered headphones), `ORD-208871` (shipped monitor),
@@ -211,7 +221,8 @@ src/support_agent/
 │   ├── recorder.py          # Transcript, tool calls, saves after each turn, final summary
 │   ├── summary.py           # Summary input, SafeSummarizer, rule-based fallback
 │   ├── sentiment.py         # SentimentMonitor: rates each customer turn in the background
-│   └── prompts.py           # System prompt, with voice and text style variants
+│   ├── prompts.py           # System prompt, with channel style and language rules
+│   └── messages.py          # Fixed closing messages for each language
 ├── adapters/
 │   ├── inbound/             # Driving adapters: how customers and operators reach the app
 │   │   ├── cli.py           # support-agent chat | voice | simulate
@@ -238,7 +249,8 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 [0004 Pipecat in one process](docs/adr/0004-pipecat-single-process-webrtc.md),
 [0005 hexagonal architecture](docs/adr/0005-hexagonal-architecture.md),
 [0006 no Pipecat Flows](docs/adr/0006-own-state-machine-not-pipecat-flows.md),
-[0007 frustration detection](docs/adr/0007-frustration-detection.md).
+[0007 frustration detection](docs/adr/0007-frustration-detection.md),
+[0008 language per conversation](docs/adr/0008-language-fixed-per-conversation.md).
 
 | Decision | Reason |
 |---|---|
@@ -275,15 +287,15 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 
 ## Testing
 
-- **`uv run pytest`** runs 90 tests in under a second, with no network. The folders mirror the layers:
-  - `tests/domain/`: validators, every state-machine rule, and the frustration policy.
-  - `tests/application/`: the tool executor, the sentiment monitor (including failures and timeouts), and full conversations through the agent loop with a scripted `ChatModel`.
-  - `tests/adapters/`: Gemini response parsing with a fake client, the voice tool handler, and the voice guidance sender.
+- **`uv run pytest`** runs 127 tests in under a second, with no network. The folders mirror the layers:
+  - `tests/domain/`: validators (English and Spanish forms), every state-machine rule, and the frustration policy.
+  - `tests/application/`: the tool executor, the sentiment monitor (including failures and timeouts), the message catalog in every language, and full conversations through the agent loop with a scripted `ChatModel`.
+  - `tests/adapters/`: Gemini response parsing with a fake client, the voice tool handler, the voice guidance sender, and the voice profiles for each language.
   - `tests/test_architecture.py`: one check per file that the layer imports only inward.
 - **`uv run support-agent simulate`** runs Gemini as seven customer personas against the real agent:
   cooperative, wrong order number first, correction during read-back, rambling, demands a human,
   growing frustration (must be offered a human without asking), and never gives a valid order number. Each persona has an expected outcome, and the command
-  exits with code 1 if one fails. Use `--persona <name>` to run one.
+  exits with code 1 if one fails. Use `--persona <name>` to run one, and `--language es` to run them in Spanish.
 
 ## Potential improvements
 
@@ -293,7 +305,8 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 | Sentiment | Add acoustic signals (tone, volume, speech rate) to the text-based frustration score. Tune the thresholds on real calls |
 | Latency | Measure time-to-first-audio per stage with Pipecat metrics. Try Gemini Live (speech-to-speech) on Vertex AI for lower latency, and compare extraction accuracy |
 | Identity | Verify the customer (email or postcode) against the order before sharing order details |
-| Conversation | Handle silence with a user-idle timeout. Support several problems in one call. Support more languages |
+| Conversation | Handle silence with a user-idle timeout. Support several problems in one call |
+| Languages | Detect the language from the first turn. Add a language selector to the browser client. Add more languages (see the steps in the feature document) |
 | Data | Replace the JSON files with a database by adding a new `ConversationStore` adapter (Firestore or Cloud SQL). Send tickets to a real helpdesk (Zendesk, Jira). Keep the call audio for quality review |
 | Evaluation | Run the simulated customers in CI, add more personas, and score the summaries with an LLM judge. Add audio-level evals with `pipecat eval` |
 | Production | Split the signaling server and the bot workers, so heavy calls scale separately. Deploy on Cloud Run. Use a TURN server for restrictive networks. Add tracing and dashboards |

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from google import genai
 from google.genai import types
 
+from support_agent.application.messages import LANGUAGE_NAMES
 from support_agent.bootstrap import (
     make_sentiment_analyzer,
     make_summarizer,
@@ -18,7 +19,7 @@ from support_agent.bootstrap import (
     new_conversation,
 )
 from support_agent.config import Settings
-from support_agent.domain.models import ConversationRecord, ConversationStatus
+from support_agent.domain.models import ConversationRecord, ConversationStatus, Language
 
 _CUSTOMER_RULES = """\
 You play a customer who contacts Orbio Store support by chat.
@@ -95,11 +96,14 @@ class SimulationResult:
 
 
 class SimulatedCustomer:
-    def __init__(self, client: genai.Client, model: str, persona: Persona):
+    def __init__(
+        self, client: genai.Client, model: str, persona: Persona, language: Language = Language.EN
+    ):
         self._client = client
         self._model = model
+        language_rule = f"Write only in {LANGUAGE_NAMES[language]}."
         self._config = types.GenerateContentConfig(
-            system_instruction=f"{_CUSTOMER_RULES}\nPersona: {persona.brief}",
+            system_instruction=f"{_CUSTOMER_RULES}\n{language_rule}\nPersona: {persona.brief}",
             temperature=0.8,
         )
         self._history: list[types.Content] = []
@@ -127,7 +131,7 @@ async def run_persona(
         make_sentiment_analyzer(settings, client),
     )
     agent = make_text_agent(settings, client, conversation)
-    customer = SimulatedCustomer(client, settings.model, persona)
+    customer = SimulatedCustomer(client, settings.model, persona, settings.default_language)
 
     turns = 0
     reply = await agent.greet()

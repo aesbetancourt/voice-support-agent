@@ -26,6 +26,7 @@ from support_agent.application.sentiment import SentimentMonitor
 from support_agent.application.summary import SafeSummarizer
 from support_agent.application.tools import ToolExecutor
 from support_agent.config import Settings
+from support_agent.domain.models import Language
 from support_agent.domain.state import TicketSession
 
 
@@ -50,13 +51,15 @@ def new_conversation(
     channel: Literal["text", "voice"],
     summarizer: Summarizer,
     sentiment_analyzer: SentimentAnalyzer | None = None,
+    language: Language | None = None,
 ) -> Conversation:
+    language = language or settings.default_language
     orders = JsonOrderRepository.from_file(settings.orders_path)
     session = TicketSession(orders.get, max_attempts=settings.max_field_attempts)
     recorder = ConversationRecorder(
-        channel, session, JsonConversationStore(settings.conversations_dir), summarizer
+        channel, session, JsonConversationStore(settings.conversations_dir), summarizer, language
     )
-    executor = ToolExecutor(session, on_call=recorder.add_tool_call)
+    executor = ToolExecutor(session, on_call=recorder.add_tool_call, language=language)
     sentiment = SentimentMonitor(sentiment_analyzer, recorder) if sentiment_analyzer else None
     return Conversation(session=session, recorder=recorder, executor=executor, sentiment=sentiment)
 
@@ -64,5 +67,7 @@ def new_conversation(
 def make_text_agent(
     settings: Settings, client: genai.Client, conversation: Conversation
 ) -> TextAgent:
-    model = GeminiChatModel(client, settings.model, system_prompt("text"))
+    model = GeminiChatModel(
+        client, settings.model, system_prompt("text", conversation.recorder.language)
+    )
     return TextAgent(model, conversation.executor, conversation.recorder, conversation.sentiment)

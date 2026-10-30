@@ -2,14 +2,18 @@
 
 from types import SimpleNamespace
 
+import pytest
 from pipecat.frames.frames import EndWorkerFrame, LLMMessagesAppendFrame, TTSSpeakFrame
 
 from support_agent.adapters.inbound.voice import (
+    VOICE_PROFILES,
     build_tools_schema,
     make_guidance_sender,
     make_tool_handler,
+    session_language,
 )
 from support_agent.application.tools import TOOL_SPECS, ToolExecutor
+from support_agent.domain.models import Language
 
 
 class FakeLLM:
@@ -86,3 +90,32 @@ async def test_no_guidance_after_the_call_closed():
     send = make_guidance_sender(FixedMonitor("Acknowledge it."), lambda: True, queue_frames)
     await send(0, "Bye!")
     assert queued == []
+
+
+@pytest.mark.parametrize("language", list(Language))
+def test_every_language_has_a_matching_voice_profile(language):
+    profile = VOICE_PROFILES[language]
+    # The TTS voice and the STT language must use the same locale, e.g. es-US.
+    assert profile.tts_voice.startswith(f"{profile.stt_language.value}-Chirp3-HD-")
+    assert profile.stt_language.value.startswith(language.value)
+    assert any(hint["value"] == "ORD" for hint in profile.phrase_hints)
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ({}, Language.EN),
+        ({"language": "es"}, Language.ES),
+        ({"language": "es-US"}, Language.ES),
+        ({"language": "klingon"}, Language.EN),
+        (None, Language.EN),
+    ],
+)
+def test_session_language_comes_from_the_client_body(body, expected):
+    runner_args = SimpleNamespace(body=body)
+    assert session_language(runner_args, default=Language.EN) is expected
+
+
+def test_spanish_uses_chirp_3_in_a_regional_location():
+    profile = VOICE_PROFILES[Language.ES]
+    assert (profile.stt_model, profile.stt_location) == ("chirp_3", "us")

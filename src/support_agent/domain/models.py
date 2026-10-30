@@ -13,6 +13,13 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+class Language(StrEnum):
+    """Language of one conversation. Fixed at the start (see ADR-0008)."""
+
+    EN = "en"
+    ES = "es"
+
+
 class Category(StrEnum):
     SHIPPING = "shipping"
     BILLING = "billing"
@@ -150,6 +157,7 @@ class ConversationRecord(BaseModel):
 
     id: str
     channel: Literal["text", "voice"]
+    language: Language = Language.EN
     status: ConversationStatus
     stage: Stage
     started_at: datetime

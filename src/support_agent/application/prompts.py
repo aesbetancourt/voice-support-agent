@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Literal
 
-from support_agent.domain.models import Category, FrustrationAction
+from support_agent.application.messages import LANGUAGE_NAMES
+from support_agent.domain.models import Category, FrustrationAction, Language
 
 _CATEGORIES = ", ".join(c.value for c in Category)
 
@@ -40,7 +41,8 @@ Rules:
 _VOICE_STYLE = """\
 This is a phone-style voice call. Your words are converted to speech:
 - Use plain spoken sentences. Do not use lists, markdown, emojis or symbols.
-- Say order numbers digit by digit, for example "O R D, one zero four, two three three".
+- Say order numbers letter by letter and digit by digit, for example
+  "O R D, one zero four, two three three" in English.
 - The customer's words come from speech recognition and can contain errors.
   If something sounds garbled or unlikely, ask the customer to repeat it.
 """
@@ -49,9 +51,30 @@ _TEXT_STYLE = """\
 This is a text chat. Use short, plain messages without markdown.
 """
 
-GREETING_TRIGGER = (
-    "The customer has just connected. Greet them as Ava from Orbio Store and ask how you can help."
-)
+_LANGUAGE_RULES = """\
+Language: speak only {language} with the customer, from the first word.
+These instructions, tool descriptions and tool results are in English: translate when you speak.
+Tool arguments stay as defined: category and urgency use their English values.
+If the customer speaks another language, answer in {language} and say that support is
+available in {language} on this line.
+"""
+
+
+# Register and style rules that a language needs beyond "speak this language".
+# They keep the LLM consistent with the fixed messages in messages.py.
+_LANGUAGE_NOTES = {
+    Language.ES: (
+        'Address the customer formally with "usted", never "tú". '
+        'The fixed closing messages also use "usted".\n'
+    ),
+}
+
+
+def greeting_trigger(language: Language = Language.EN) -> str:
+    return (
+        "The customer has just connected. Greet them as Ava from Orbio Store "
+        f"and ask how you can help. Speak {LANGUAGE_NAMES[language]}."
+    )
 
 
 FRUSTRATION_GUIDANCE = {
@@ -72,6 +95,8 @@ def frustration_guidance(action: FrustrationAction, reason: str) -> str | None:
     return template.format(reason=reason.rstrip(".")) if template else None
 
 
-def system_prompt(channel: Literal["text", "voice"]) -> str:
+def system_prompt(channel: Literal["text", "voice"], language: Language = Language.EN) -> str:
     style = _VOICE_STYLE if channel == "voice" else _TEXT_STYLE
-    return f"{_BASE_PROMPT}\n{style}"
+    rules = _LANGUAGE_RULES.format(language=LANGUAGE_NAMES[language])
+    notes = _LANGUAGE_NOTES.get(language, "")
+    return f"{_BASE_PROMPT}\n{style}\n{rules}{notes}"

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
 
 from google.auth.exceptions import GoogleAuthError
 from loguru import logger
@@ -39,12 +41,12 @@ from pipecat.services.google.stt import GoogleSTTService
 from pipecat.services.google.tts import GoogleTTSService
 from pipecat.services.google.vertex.llm import GoogleVertexLLMService
 from pipecat.services.llm_service import FunctionCallParams
-from pipecat.transcriptions.language import Language
+from pipecat.transcriptions.language import Language as PipecatLanguage
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 
 from support_agent.adapters.outbound.gemini import make_client
-from support_agent.application.prompts import GREETING_TRIGGER, system_prompt
+from support_agent.application.prompts import greeting_trigger, system_prompt
 from support_agent.application.sentiment import ANALYSIS_TIMEOUT_SECS, SentimentMonitor
 from support_agent.application.tools import TOOL_SPECS, ToolExecutor
 from support_agent.bootstrap import (
@@ -54,14 +56,65 @@ from support_agent.bootstrap import (
     new_conversation,
 )
 from support_agent.config import ConfigError, Settings
-from support_agent.domain.models import Category
+from support_agent.domain.models import Category, Language
+from support_agent.domain.validators import parse_language
 
-# Phrases that speech recognition must favor: the order prefix and the category names.
-_PHRASE_HINTS = [
-    {"value": "ORD", "boost": 15.0},
-    {"value": "order number", "boost": 10.0},
-    *({"value": c.value.replace("_", " "), "boost": 5.0} for c in Category),
-]
+
+@dataclass(frozen=True)
+class VoiceProfile:
+    """Speech settings for one conversation language."""
+
+    stt_language: PipecatLanguage
+    # STT model and Google Cloud location. Chirp 3 is served from regional locations only.
+    stt_model: str
+    stt_location: str
+    tts_voice: str
+    # Phrases that speech recognition must favor: the order prefix and the category names.
+    phrase_hints: list[dict[str, Any]]
+
+
+VOICE_PROFILES = {
+    Language.EN: VoiceProfile(
+        stt_language=PipecatLanguage.EN_US,
+        stt_model="latest_long",
+        stt_location="global",
+        tts_voice="en-US-Chirp3-HD-Charon",
+        phrase_hints=[
+            {"value": "ORD", "boost": 15.0},
+            {"value": "order number", "boost": 10.0},
+            *({"value": c.value.replace("_", " "), "boost": 5.0} for c in Category),
+        ],
+    ),
+    Language.ES: VoiceProfile(
+        stt_language=PipecatLanguage.ES_US,
+        # latest_long misheard fluent Spanish order numbers ("O R D, uno cero cuatro…"
+        # became "o Rd 1004"); chirp_3 got them right. See ADR-0008.
+        stt_model="chirp_3",
+        stt_location="us",
+        tts_voice="es-US-Chirp3-HD-Charon",
+        phrase_hints=[
+            {"value": "ORD", "boost": 15.0},
+            {"value": "número de pedido", "boost": 10.0},
+            *(
+                {"value": word, "boost": 5.0}
+                for word in ("envío", "factura", "defectuoso", "devolución", "reembolso", "cuenta")
+            ),
+        ],
+    ),
+}
+
+
+def session_language(runner_args: RunnerArguments, default: Language) -> Language:
+    """The language for one session: ``{"language": "es"}`` in the client body, else the default."""
+    body = runner_args.body if isinstance(runner_args.body, dict) else {}
+    raw = body.get("language")
+    if not raw:
+        return default
+    try:
+        return parse_language(str(raw))
+    except ValueError as exc:
+        logger.warning(f"{exc} Using {default.value}.")
+        return default
 
 
 def build_tools_schema() -> ToolsSchema:
@@ -121,15 +174,16 @@ def make_guidance_sender(
     return send
 
 
-def build_services(settings: Settings):
+def build_services(settings: Settings, language: Language):
     project_id = settings.require_project()
+    profile = VOICE_PROFILES[language]
     adaptation = (
-        {"phrase_sets": [{"phrases": _PHRASE_HINTS}]} if settings.stt_phrase_hints else None
+        {"phrase_sets": [{"phrases": profile.phrase_hints}]} if settings.stt_phrase_hints else None
     )
     stt = GoogleSTTService(
-        location=settings.stt_location,
+        location=profile.stt_location,
         settings=GoogleSTTService.Settings(
-            languages=[Language.EN_US], model="latest_long", adaptation=adaptation
+            languages=[profile.stt_language], model=profile.stt_model, adaptation=adaptation
         ),
     )
     llm = GoogleVertexLLMService(
@@ -137,18 +191,22 @@ def build_services(settings: Settings):
         location=settings.location,
         settings=GoogleVertexLLMService.Settings(
             model=settings.model,
-            system_instruction=system_prompt("voice"),
+            system_instruction=system_prompt("voice", language),
             temperature=0.4,
         ),
     )
-    tts = GoogleTTSService(settings=GoogleTTSService.Settings(voice=settings.tts_voice))
+    # Set the language too: the service defaults its language code to en-US.
+    tts = GoogleTTSService(
+        settings=GoogleTTSService.Settings(voice=profile.tts_voice, language=profile.stt_language)
+    )
     return stt, llm, tts
 
 
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> None:
     settings = Settings.from_env()
+    language = session_language(runner_args, settings.default_language)
     try:
-        stt, llm, tts = build_services(settings)
+        stt, llm, tts = build_services(settings, language)
         client = make_client(settings)
         summarizer = make_summarizer(settings, client)
         sentiment_analyzer = make_sentiment_analyzer(settings, client)
@@ -159,9 +217,11 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         )
         return
 
-    conversation: Conversation = new_conversation(settings, "voice", summarizer, sentiment_analyzer)
+    conversation: Conversation = new_conversation(
+        settings, "voice", summarizer, sentiment_analyzer, language
+    )
     recorder = conversation.recorder
-    logger.info(f"Starting voice conversation {recorder.id}")
+    logger.info(f"Starting voice conversation {recorder.id} in {language.value}")
 
     llm.register_function(
         None,
@@ -196,7 +256,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
 
     @worker.rtvi.event_handler("on_client_ready")
     async def on_client_ready(rtvi):
-        context.add_message({"role": "developer", "content": GREETING_TRIGGER})
+        context.add_message({"role": "developer", "content": greeting_trigger(language)})
         await worker.queue_frames([LLMRunFrame()])
 
     @transport.event_handler("on_client_disconnected")

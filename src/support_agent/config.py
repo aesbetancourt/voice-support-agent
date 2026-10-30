@@ -8,6 +8,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from support_agent.domain.models import Language
+from support_agent.domain.validators import parse_language
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -22,8 +25,7 @@ class Settings:
     model: str
     summary_model: str
     sentiment_model: str
-    tts_voice: str
-    stt_location: str
+    default_language: Language
     stt_phrase_hints: bool
     orders_path: Path
     conversations_dir: Path
@@ -39,8 +41,7 @@ class Settings:
             model=model,
             summary_model=os.getenv("GEMINI_SUMMARY_MODEL", model),
             sentiment_model=os.getenv("GEMINI_SENTIMENT_MODEL", "gemini-3.5-flash-lite"),
-            tts_voice=os.getenv("GOOGLE_TTS_VOICE", "en-US-Chirp3-HD-Charon"),
-            stt_location=os.getenv("GOOGLE_STT_LOCATION", "global"),
+            default_language=parse_language(os.getenv("DEFAULT_LANGUAGE", "en")),
             stt_phrase_hints=os.getenv("GOOGLE_STT_PHRASE_HINTS", "true").lower() != "false",
             orders_path=Path(os.getenv("ORDERS_PATH", PROJECT_ROOT / "data" / "orders.json")),
             conversations_dir=Path(os.getenv("CONVERSATIONS_DIR", PROJECT_ROOT / "conversations")),

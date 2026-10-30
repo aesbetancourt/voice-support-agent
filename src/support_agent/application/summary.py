@@ -17,6 +17,8 @@ SUMMARY_INSTRUCTION = """\
 You summarize customer support conversations for the support team.
 Use only facts from the transcript and the ticket. Do not invent details.
 Write short, plain sentences.
+Always write the summary in English, even if the conversation is in another language,
+because the support team works in English.
 """
 
 

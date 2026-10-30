@@ -159,6 +159,21 @@ See [the feature document](features/frustration-detection.md) and [ADR-0007](adr
 
 ---
 
+## 4c. Multiple languages
+
+Ava speaks English or Spanish. The language is fixed when the conversation starts (`--language es`,
+`DEFAULT_LANGUAGE`, or `{"language": "es"}` from a custom client). It selects:
+
+- a **voice profile**: STT language, model and location, TTS voice, phrase hints;
+- the **prompt's language rules**, for example the formal "usted" in Spanish;
+- the **fixed closing messages**, translated in `application/messages.py`.
+
+The inside of the system stays in English: tool results, category and urgency values, and the summary.
+Gemini translates when it speaks. See [the feature document](features/multi-language.md) and
+[ADR-0008](adr/0008-language-fixed-per-conversation.md).
+
+---
+
 ## 5. How one voice call flows through the code
 
 ```mermaid
@@ -235,7 +250,8 @@ orbio-case/
 │   │   ├── recorder.py          Collects transcript + tool calls, saves after each turn
 │   │   ├── summary.py           What the summarizer receives + the rule-based fallback
 │   │   ├── sentiment.py         Rates each customer turn for frustration, in the background
-│   │   └── prompts.py           Instructions for Gemini (personality, rules)
+│   │   ├── prompts.py           Instructions for Gemini (personality, rules, language)
+│   │   └── messages.py          Fixed closing messages for each language
 │   │
 │   ├── adapters/
 │   │   ├── inbound/             How customers and operators reach the app
@@ -250,7 +266,7 @@ orbio-case/
 │   ├── bootstrap.py             Connects the adapters to the ports
 │   └── config.py                Reads settings from .env
 │
-├── tests/                       90 tests, no internet needed. Same folders as the code
+├── tests/                       127 tests, no internet needed. Same folders as the code
 │   ├── domain/  application/  adapters/
 │   └── test_architecture.py     Checks that every import points inward
 ├── data/orders.json             10 fake orders

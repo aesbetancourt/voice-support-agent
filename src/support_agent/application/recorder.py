@@ -14,6 +14,7 @@ from support_agent.application.ports import ConversationStore, Summarizer
 from support_agent.domain.models import (
     ConversationRecord,
     ConversationStatus,
+    Language,
     SentimentReading,
     Stage,
     ToolCallEvent,
@@ -36,9 +37,11 @@ class ConversationRecorder:
         session: TicketSession,
         store: ConversationStore,
         summarizer: Summarizer,
+        language: Language = Language.EN,
     ):
         self.id = f"{utc_now():%Y%m%dT%H%M%S}-{uuid.uuid4().hex[:8]}"
         self.channel = channel
+        self.language = language
         self.session = session
         self._store = store
         self._summarizer = summarizer
@@ -85,6 +88,7 @@ class ConversationRecorder:
         return ConversationRecord(
             id=self.id,
             channel=self.channel,
+            language=self.language,
             status=status,
             stage=session.stage,
             started_at=self._started_at,

@@ -12,7 +12,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from support_agent.domain.models import Category, Stage, Urgency
+from support_agent.application.messages import closing_message
+from support_agent.domain.models import Category, Language, Urgency
 from support_agent.domain.state import SessionClosedError, TicketSession
 
 
@@ -118,8 +119,14 @@ ToolCallListener = Callable[[str, dict[str, Any], dict[str, Any]], None]
 
 
 class ToolExecutor:
-    def __init__(self, session: TicketSession, on_call: ToolCallListener | None = None):
+    def __init__(
+        self,
+        session: TicketSession,
+        on_call: ToolCallListener | None = None,
+        language: Language = Language.EN,
+    ):
         self.session = session
+        self.language = language
         self._on_call = on_call
 
     def execute(self, name: str, arguments: dict[str, Any] | None) -> ToolOutcome:
@@ -157,18 +164,4 @@ class ToolExecutor:
 
     def _closing_message(self) -> str | None:
         session = self.session
-        match session.stage:
-            case Stage.COMPLETED:
-                return (
-                    f"Your ticket is submitted. The reference is {session.ticket.ticket_id}. "
-                    "Our team will contact you soon. Thank you for contacting Orbio Store. Goodbye!"
-                )
-            case Stage.ESCALATED:
-                return (
-                    "I am transferring you to a human agent now. "
-                    "They will see everything we discussed. Please hold."
-                )
-            case Stage.ENDED:
-                return "Thank you for contacting Orbio Store. Goodbye!"
-            case _:
-                return None
+        return closing_message(self.language, session.stage, session.ticket.ticket_id)

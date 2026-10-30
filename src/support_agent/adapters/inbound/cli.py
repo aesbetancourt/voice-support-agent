@@ -20,7 +20,8 @@ from support_agent.bootstrap import (
     new_conversation,
 )
 from support_agent.config import ConfigError, Settings
-from support_agent.domain.models import ConversationRecord
+from support_agent.domain.models import ConversationRecord, Language
+from support_agent.domain.validators import parse_language
 
 MAX_INPUT_CHARS = 2000
 VOICE_MODULE = "support_agent.adapters.inbound.voice"
@@ -84,11 +85,18 @@ async def run_simulations(settings: Settings, persona_name: str, max_turns: int)
 
 def _print_record(record: ConversationRecord, location: str) -> None:
     print("-" * 60)
-    print(f"Status: {record.status.value}")
+    print(f"Status: {record.status.value} ({record.language.value})")
     print(f"Ticket: {record.ticket.model_dump_json(exclude_none=True)}")
     if record.summary:
         print(f"Summary: {record.summary.headline}")
     print(f"Saved:  {location}")
+
+
+def _language_arg(raw: str) -> Language:
+    try:
+        return parse_language(raw)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def _run_voice(extra_args: list[str]) -> None:
@@ -102,16 +110,25 @@ def _run_voice(extra_args: list[str]) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="support-agent", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("chat", help="Talk to the agent by text in the terminal.")
-    commands.add_parser(
+    chat = commands.add_parser("chat", help="Talk to the agent by text in the terminal.")
+    voice = commands.add_parser(
         "voice",
         help="Start the voice server (open http://localhost:7860). Extra args go to Pipecat.",
     )
     simulate = commands.add_parser("simulate", help="Run simulated customers against the agent.")
     simulate.add_argument("--persona", default="all", help="Persona name, or 'all'.")
     simulate.add_argument("--max-turns", type=int, default=16)
+    for command in (chat, voice, simulate):
+        command.add_argument(
+            "--language",
+            type=_language_arg,
+            help="Conversation language: en or es. Default: DEFAULT_LANGUAGE in .env, else en.",
+        )
 
     args, extra = parser.parse_known_args(argv)
+    if args.language is not None:
+        # Settings read the language from the environment; the voice process inherits it.
+        os.environ["DEFAULT_LANGUAGE"] = args.language.value
     if args.command == "voice":
         _run_voice(extra)
         return
