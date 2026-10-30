@@ -10,13 +10,14 @@ The whole stack runs on Google Cloud:
 |---|---|
 | Transport | Pipecat SmallWebRTC (browser ↔ Python, peer-to-peer audio) |
 | Speech-to-text | Google Cloud Speech-to-Text (streaming, phrase hints): `latest_long` for English, `chirp_3` for Spanish |
-| LLM | Gemini on Vertex AI (`gemini-3.8-flash` by default) |
+| LLM | Gemini on Vertex AI (`gemini-3.5-flash` by default) |
 | Text-to-speech | Google Cloud Text-to-Speech, Chirp 3 HD voices (`en-US`, `es-US`) |
 | Framework | [Pipecat](https://github.com/pipecat-ai/pipecat) 1.15 |
 
 The same agent also runs as a text chat in the terminal, for fast testing without audio.
 
 New to Pipecat or to this codebase? Read [docs/how-it-works.md](docs/how-it-works.md) first.
+For the requirement checklist and what was added beyond the brief, see [docs/spec.md](docs/spec.md).
 
 ## What the agent collects
 
@@ -123,6 +124,12 @@ That sample comes from a scripted test model, so its summary uses the rule-based
 The code follows **hexagonal architecture (ports and adapters)**. Dependencies point inward only:
 adapters depend on the application, the application depends on the domain, and the domain
 depends on nothing in the project. `tests/test_architecture.py` enforces this rule.
+
+> **Interactive diagram:** [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) shows the whole
+> system on one page: every layer, adapter, port and Google Cloud service, with animated data flow, a dark and
+> light theme, and image export. Open it in a browser. It is a single standalone file, so it also works offline.
+> GitHub shows the file as source code, so download it, or open it from a local clone.
+> The diagram's source is [`docs/diagrams/architecture.json`](docs/diagrams/architecture.json), rendered with Archify.
 
 ```mermaid
 flowchart LR
@@ -304,6 +311,7 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 | Speech | Use word confidence from Google STT to ask for a repeat before extraction. Try the Chirp 3 STT model. Add a custom phrase set with all valid order prefixes |
 | Sentiment | Add acoustic signals (tone, volume, speech rate) to the text-based frustration score. Tune the thresholds on real calls |
 | Latency | Measure time-to-first-audio per stage with Pipecat metrics. Try Gemini Live (speech-to-speech) on Vertex AI for lower latency, and compare extraction accuracy |
+| Knowledge (RAG) | Let Ava answer policy questions from a knowledge base of common issues, through a `KnowledgeBase` port and a Vertex AI RAG Engine adapter. Not part of this delivery: see [spec section 7](docs/spec.md#7-not-delivered-rag-over-a-knowledge-base) |
 | Identity | Verify the customer (email or postcode) against the order before sharing order details |
 | Conversation | Handle silence with a user-idle timeout. Support several problems in one call |
 | Languages | Detect the language from the first turn. Add a language selector to the browser client. Add more languages (see the steps in the feature document) |
@@ -317,5 +325,7 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 - The voice channel and the live Gemini calls need a configured GCP project. They were built against
   the Pipecat 1.15 and `google-genai` APIs, and the offline tests cover the tool handler. The full audio
   path must still be tried end to end with real credentials.
-- `gemini-3.8-flash` is Pipecat's current default model. If your project does not have it,
-  set `GEMINI_MODEL` to a model that Vertex AI Model Garden lists for your project.
+- The default model is `gemini-3.5-flash`, not Pipecat's default `gemini-3.8-flash`. In a measurement on
+  the `global` endpoint, 3.8 Flash took 2 to 20 seconds per model round, and a voice turn with a tool call
+  needs two rounds. 3.5 Flash took about 0.8 seconds per round and passed all simulated customers in both
+  languages. If your project does not have it, set `GEMINI_MODEL` to a model that Vertex AI Model Garden lists.
