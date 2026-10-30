@@ -22,8 +22,12 @@ from pipecat.frames.frames import (
     EndWorkerFrame,
     Frame,
     FunctionCallResultProperties,
+    InterruptionFrame,
+    LLMFullResponseEndFrame,
+    LLMFullResponseStartFrame,
     LLMMessagesAppendFrame,
     LLMRunFrame,
+    LLMTextFrame,
     TranscriptionFrame,
     TTSSpeakFrame,
     TTSUpdateSettingsFrame,
@@ -48,7 +52,7 @@ from pipecat.transcriptions.language import Language as PipecatLanguage
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 
-from support_agent.adapters.outbound.gemini import make_client
+from support_agent.adapters.outbound.gemini import ThoughtTagStripper, make_client
 from support_agent.application.prompts import (
     greeting_trigger,
     language_switch_note,
@@ -238,6 +242,32 @@ class LanguageSwitcher(FrameProcessor):
         await self.push_frame(frame, direction)
 
 
+class ThoughtTagFilter(FrameProcessor):
+    """Remove ``<thought>`` tags from Gemini's streamed text before TTS speaks it.
+
+    It sits right after the LLM, so the voice, the browser transcript and the saved
+    record all get the cleaned text.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._stripper = ThoughtTagStripper()
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+        await super().process_frame(frame, direction)
+        if isinstance(frame, (LLMFullResponseStartFrame, InterruptionFrame)):
+            self._stripper = ThoughtTagStripper()
+        elif isinstance(frame, LLMTextFrame):
+            frame.text = self._stripper.feed(frame.text)
+            if not frame.text:
+                return
+        elif isinstance(frame, LLMFullResponseEndFrame):
+            rest = self._stripper.flush()
+            if rest:
+                await self.push_frame(LLMTextFrame(rest), direction)
+        await self.push_frame(frame, direction)
+
+
 def build_services(settings: Settings, language: Language):
     project_id = settings.require_project()
     hints = {
@@ -320,6 +350,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
             switcher,
             user_aggregator,
             llm,
+            ThoughtTagFilter(),
             tts,
             transport.output(),
             assistant_aggregator,

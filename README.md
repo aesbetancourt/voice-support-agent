@@ -288,6 +288,7 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 | Invalid or unknown value | Rejected with a reason; the agent asks again; logged in `validation_events` |
 | Same field fails 3 times | Automatic escalation to a human |
 | Customer corrects a value after the read-back | The confirmation is reset; the agent must read back again |
+| Gemini writes a `<thought>` tag as reply text | The tag is removed before TTS, the transcript and the record. A closed `<thought>…</thought>` block is dropped |
 | Off-topic input, garbled transcript | The prompt tells the agent to redirect, or to ask the customer to repeat |
 | Customer asks for a human, safety issue | `escalate_to_human` |
 | LLM calls tools in a loop (text channel) | Stopped after 6 rounds; the agent asks the customer to repeat |

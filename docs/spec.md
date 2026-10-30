@@ -115,6 +115,7 @@ The requirements stayed the same. The way to meet them changed as we found new f
 | GCP setup | Text-to-Speech needs a quota project with user ADC credentials | The setup steps include `set-quota-project`. The CLI explains auth errors |
 | Spanish run | Gemini used the informal "tú", but the fixed messages use "usted" | The prompt requires "usted", and a test checks it |
 | Spanish speech check | Pipecat's Google TTS defaults its language code to `en-US` | Each voice profile sets both the voice and the language code |
+| Spanish voice call | Gemini 3.5 Flash once started a reply with a literal `<thought>` tag, which reached the chat and the voice | `ThoughtTagStripper` removes the tags from streamed voice text and from text-channel replies |
 
 ---
 

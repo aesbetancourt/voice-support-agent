@@ -5,7 +5,10 @@ from types import SimpleNamespace
 import pytest
 from pipecat.frames.frames import (
     EndWorkerFrame,
+    LLMFullResponseEndFrame,
+    LLMFullResponseStartFrame,
     LLMMessagesAppendFrame,
+    LLMTextFrame,
     TranscriptionFrame,
     TTSSpeakFrame,
     TTSUpdateSettingsFrame,
@@ -17,6 +20,7 @@ from support_agent.adapters.inbound.voice import (
     STT_MODEL,
     VOICE_PROFILES,
     LanguageSwitcher,
+    ThoughtTagFilter,
     build_tools_schema,
     language_switch_frames,
     make_guidance_sender,
@@ -224,3 +228,26 @@ async def test_switcher_ignores_the_same_language_and_short_replies():
     assert switches == []
     assert switcher.language is Language.EN
     assert all(isinstance(f, TranscriptionFrame) for f in pushed)
+
+
+async def test_thought_filter_cleans_streamed_llm_text():
+    pushed = []
+    tag_filter = ThoughtTagFilter()
+
+    async def push_frame(frame, direction=FrameDirection.DOWNSTREAM):
+        pushed.append(frame)
+
+    tag_filter.push_frame = push_frame
+    tag_filter._check_started = lambda frame: True
+    frames = [
+        LLMFullResponseStartFrame(),
+        LLMTextFrame("<thou"),
+        LLMTextFrame("ght>\nEntiendo."),
+        LLMTextFrame(" ¿Algo más?"),
+        LLMFullResponseEndFrame(),
+    ]
+    for frame in frames:
+        await tag_filter.process_frame(frame, FrameDirection.DOWNSTREAM)
+    spoken = "".join(f.text for f in pushed if isinstance(f, LLMTextFrame))
+    assert spoken == "\nEntiendo. ¿Algo más?"
+    assert isinstance(pushed[-1], LLMFullResponseEndFrame)

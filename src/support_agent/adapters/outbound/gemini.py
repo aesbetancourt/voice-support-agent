@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from google import genai
@@ -23,6 +24,67 @@ from support_agent.domain.models import (
 # Retry rate limits and server errors with exponential backoff.
 _RETRY = types.HttpRetryOptions(attempts=3, initial_delay=1.0, max_delay=8.0)
 _TIMEOUT_MS = 30_000
+
+_OPEN_TAG = "<thought>"
+_CLOSE_TAG = "</thought>"
+
+
+class ThoughtTagStripper:
+    """Remove ``<thought>`` tags that Gemini sometimes writes as plain reply text.
+
+    These are not real thought parts (those are filtered by ``part.thought``), so they
+    would reach the customer. A closed ``<thought>…</thought>`` block is dropped. An
+    unclosed tag is dropped, and the text after it is kept: in live calls it was the reply.
+    Feed streamed chunks in order, then call ``flush()`` at the end of the response.
+    """
+
+    def __init__(self) -> None:
+        self._buffer = ""
+        self._in_block = False
+
+    def feed(self, chunk: str) -> str:
+        self._buffer += chunk
+        out = []
+        while True:
+            lower = self._buffer.lower()
+            if self._in_block:
+                end = lower.find(_CLOSE_TAG)
+                if end < 0:
+                    return "".join(out)  # Hold the text until the block closes or ends.
+                self._buffer = self._buffer[end + len(_CLOSE_TAG) :]
+                self._in_block = False
+                continue
+            start = lower.find(_OPEN_TAG)
+            if start >= 0:
+                out.append(self._buffer[:start])
+                self._buffer = self._buffer[start + len(_OPEN_TAG) :]
+                self._in_block = True
+                continue
+            self._buffer = re.sub(re.escape(_CLOSE_TAG), "", self._buffer, flags=re.IGNORECASE)
+            keep = _partial_tag_length(self._buffer)
+            out.append(self._buffer[: len(self._buffer) - keep])
+            self._buffer = self._buffer[len(self._buffer) - keep :]
+            return "".join(out)
+
+    def flush(self) -> str:
+        """Return the held text. The text after an unclosed tag counts as the reply."""
+        rest, self._buffer, self._in_block = self._buffer, "", False
+        return rest
+
+
+def _partial_tag_length(text: str) -> int:
+    """Length of a trailing piece that can still become a tag, such as ``<tho``."""
+    lower = text.lower()
+    for size in range(min(len(lower), len(_CLOSE_TAG) - 1), 0, -1):
+        tail = lower[-size:]
+        if _OPEN_TAG.startswith(tail) or _CLOSE_TAG.startswith(tail):
+            return size
+    return 0
+
+
+def strip_thought_tags(text: str) -> str:
+    stripper = ThoughtTagStripper()
+    return stripper.feed(text) + stripper.flush()
 
 
 def make_client(settings: Settings) -> genai.Client:
@@ -94,7 +156,7 @@ class GeminiChatModel:
         # Keep the full model turn: Gemini needs its thought signatures in later requests.
         self._history.append(content)
         parts = content.parts or []
-        text = "".join(p.text for p in parts if p.text and not p.thought)
+        text = strip_thought_tags("".join(p.text for p in parts if p.text and not p.thought))
         calls = [
             FunctionCall(
                 name=p.function_call.name or "",

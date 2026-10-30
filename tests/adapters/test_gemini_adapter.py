@@ -2,9 +2,14 @@
 
 from types import SimpleNamespace
 
+import pytest
 from google.genai import types
 
-from support_agent.adapters.outbound.gemini import GeminiChatModel, GeminiSentimentAnalyzer
+from support_agent.adapters.outbound.gemini import (
+    GeminiChatModel,
+    GeminiSentimentAnalyzer,
+    ThoughtTagStripper,
+)
 from support_agent.application.ports import FunctionCall
 from support_agent.domain.models import Turn
 
@@ -96,3 +101,30 @@ async def test_sentiment_analyzer_parses_structured_output():
     draft = await analyzer.analyze("This is my third call!", recent)
     assert (draft.frustration, draft.reason) == (0.8, "third call")
     assert "assistant: How can I help?" in fake.requests[0]
+
+
+@pytest.mark.parametrize(
+    ("chunks", "expected"),
+    [
+        (["Hello there."], "Hello there."),
+        # Seen in a live Spanish call: an unclosed tag before the real reply.
+        (
+            ["<thought>\nEntiendo. ¿Pudo encontrar su número de orden?"],
+            "\nEntiendo. ¿Pudo encontrar su número de orden?",
+        ),
+        (["<thought>The user is upset.</thought>I understand."], "I understand."),
+        (["<tho", "ught>plan</tho", "ught>Sure, ", "one moment."], "Sure, one moment."),
+        (["Price < 50 dollars."], "Price < 50 dollars."),
+        (["Ends with <"], "Ends with <"),
+        (["<THOUGHT>x</THOUGHT>Ok."], "Ok."),
+    ],
+)
+def test_thought_tags_are_removed_from_streamed_text(chunks, expected):
+    stripper = ThoughtTagStripper()
+    text = "".join(stripper.feed(chunk) for chunk in chunks) + stripper.flush()
+    assert text == expected
+
+
+def test_thought_text_before_a_tag_is_sent_at_once():
+    stripper = ThoughtTagStripper()
+    assert stripper.feed("Sure. <thou") == "Sure. "
