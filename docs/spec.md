@@ -6,7 +6,7 @@ how the plan changed during the work, and what is still open.
 
 | | |
 |---|---|
-| **Status** | All requirements met except RAG, which is not part of this delivery ([section 7](#7-not-delivered-rag-over-a-knowledge-base)). Two extra features added. Open items listed in [section 8](#8-open-items) |
+| **Status** | All core requirements met. Bonus features: 3 of 4 (RAG is not delivered, see [section 7](#7-not-delivered-rag-over-a-knowledge-base)). The demo video URL is still to add. Open items listed in [section 8](#8-open-items) |
 | **Code** | `src/support_agent/`, hexagonal architecture ([diagram](diagrams/architecture.html)) |
 | **Tests** | 127 automated tests, no network. 7 live simulated personas, passing in English and Spanish |
 | **History** | 12 commits on `main` in a local Git repository. No remote yet |
@@ -23,7 +23,8 @@ The project delivers **Ava**, a voice customer-support agent for the fictional o
 - **Ticket:** Ava collects an order number, a problem category, a description and an urgency level, and opens a validated support ticket.
 - **Channels:** customers talk to Ava by voice in the browser, or by text in the terminal.
 - **Stack:** everything runs on Google Cloud (Speech-to-Text, Gemini on Vertex AI, Text-to-Speech), orchestrated by Pipecat.
-- **Extras beyond the brief:** frustration detection, English and Spanish conversations, a customer simulator for automated evaluation, and an architecture enforced by tests.
+- **Bonus features from the brief:** frustration detection, conversation memory, and English and Spanish with a live switch. RAG is not delivered.
+- **Extras beyond the brief:** a customer simulator for automated evaluation, and an architecture enforced by tests.
 
 ---
 
@@ -40,7 +41,6 @@ Legend: ✅ done · 🟡 done with a caveat · ⬜ not done
 | 1.3 | Extract and validate the information into a structured format | ✅ | Gemini proposes values only through tool calls. Pydantic models and validators check every value, and the order must exist in the order database | `application/tools.py`, `domain/state.py`, `domain/validators.py` · [ADR-0001](adr/0001-code-owns-the-ticket-state.md) |
 | 1.4 | Handle basic errors and invalid input gracefully | ✅ | Each rejected value returns a reason, and Ava asks again. Three failures on one field escalate to a human. Off-topic input is redirected, garbled transcripts are re-asked, API errors are retried, and auth problems print the command to fix them | README "Error handling" table · `tests/domain/test_state.py` |
 | 1.5 | Keep the conversation context throughout the interaction | ✅ | The full history stays in the Pipecat context (voice) or in `GeminiChatModel` (text). Corrections at any point work, and a correction after the read-back resets the confirmation | `domain/state.py` (`_reopen_if_confirming`) · `tests/domain/test_state.py` |
-| 1.6 | RAG over a provided knowledge base (example: common customer issues) | ⬜ | Not part of this delivery. It needs cloud infrastructure and curated content outside the code. It is listed as a potential improvement, with its design, in section 7 and in the README | [Section 7](#7-not-delivered-rag-over-a-knowledge-base) |
 
 ### 2.2 Data extraction and storage
 
@@ -68,12 +68,26 @@ Legend: ✅ done · 🟡 done with a caveat · ⬜ not done
 | 4.3 | README: system architecture overview | ✅ | Hexagonal view, voice runtime view, state machine, tools and project structure | [README → Architecture](../README.md#architecture) · [diagram](diagrams/architecture.html) |
 | 4.4 | README: key design decisions | ✅ | A decision table in the README, plus 8 ADRs that record the rejected alternatives | [README → Key design decisions](../README.md#key-design-decisions) · [ADRs](adr/) |
 | 4.5 | README: potential improvements | ✅ | A table by area: speech, sentiment, latency, knowledge (RAG), identity, conversation, languages, data, evaluation, production, security | [README → Potential improvements](../README.md#potential-improvements) |
+| 4.6 | URL to a demo video of sample conversations | ⬜ | To record. The script covers a full ticket, an invalid order number, frustration with escalation, and a live switch to Spanish | — |
 
-**Result: 16 of 18 items done. One item (4.1) is done with a caveat: the repository exists, but it is not pushed to a remote. One item (1.6, RAG) is not delivered, on purpose.**
+**Result: 16 of 18 items done. Item 4.1 has a caveat: the repository exists, but it is not pushed to a remote. Item 4.6, the demo video URL, is still to add.**
+
+### 2.5 Bonus features (optional)
+
+| # | Bonus feature | Status | How it is met | Evidence |
+|---|---|---|---|---|
+| B.1 | RAG using a provided knowledge base (example: common customer issues) | ⬜ | Not part of this delivery. It needs cloud infrastructure and curated content outside the code. It is listed as a potential improvement, with its design | [Section 7](#7-not-delivered-rag-over-a-knowledge-base) |
+| B.2 | Sentiment analysis to detect customer frustration | ✅ | Gemini Flash-Lite rates every customer turn in the background. A domain rule makes Ava acknowledge frustration, then offer a human once | [Feature doc](features/frustration-detection.md) · [ADR-0007](adr/0007-frustration-detection.md) |
+| B.3 | Multi-turn conversation memory | ✅ | The full history stays in context for the whole call. Ava keeps every collected field across turns, accepts corrections at any point, and reads the ticket back before submitting. Memory **across** calls is not built (section 8) | `domain/state.py` · `tests/domain/test_state.py` |
+| B.4 | Support for multiple languages | ✅ | English and Spanish. Voice calls detect the language per utterance and switch the voice and replies live | [Feature doc](features/multi-language.md) · [ADR-0009](adr/0009-detect-the-language-in-voice-calls.md) |
+
+**Bonus result: 3 of 4.**
 
 ---
 
 ## 3. Functionality beyond the brief
+
+The bonus features are in section 2.5. This table lists what the brief did not ask for.
 
 | Feature | What it adds | Where it is documented |
 |---|---|---|
@@ -81,12 +95,10 @@ Legend: ✅ done · 🟡 done with a caveat · ⬜ not done
 | **Read-back and confirmation** | Ava reads the ticket back before she submits it. The code refuses to submit without a confirmed read-back | [ADR-0001](adr/0001-code-owns-the-ticket-state.md) |
 | **Fixed closing messages** | The ticket ID and the closing words come from code, so the LLM cannot invent a reference number | [ADR-0001](adr/0001-code-owns-the-ticket-state.md) |
 | **Escalation and end paths** | Transfer to a human on request, on a safety issue, or after three failures. The customer can also leave without a ticket | `application/tools.py` |
-| **Frustration detection** | Gemini Flash-Lite rates every customer turn in the background. A domain rule makes Ava acknowledge frustration, or offer a human once | [Feature doc](features/frustration-detection.md) · [ADR-0007](adr/0007-frustration-detection.md) |
-| **English and Spanish, switched live** | In voice calls, speech recognition detects the language of each utterance, and Ava switches her voice, replies and closing messages on the same turn. Text chat uses one language. Spanish uses the formal "usted" | [Feature doc](features/multi-language.md) · [ADR-0008](adr/0008-language-fixed-per-conversation.md) |
 | **Text channel** | The same agent in the terminal, without audio, for fast and cheap testing | README → Run |
 | **Customer simulator** | Gemini plays 7 difficult customer personas against the real agent. Each persona has an expected outcome, and the command exits non-zero on failure | README → Testing |
 | **Hexagonal architecture, enforced** | Domain, application with ports, inbound and outbound adapters. A test fails if any layer imports outward | [ADR-0005](adr/0005-hexagonal-architecture.md) · `tests/test_architecture.py` |
-| **Documentation set** | A system guide, 8 ADRs, 2 feature documents, an architecture diagram, and this specification | [`docs/`](.) |
+| **Documentation set** | A system guide, 9 ADRs, 2 feature documents, an architecture diagram, and this specification | [`docs/`](.) |
 
 ---
 
@@ -165,9 +177,9 @@ Details: [README → State machine](../README.md#state-machine).
 
 ## 7. Not delivered: RAG over a knowledge base
 
-**Requirement:** "Implement RAG using a provided knowledge base. For example, for a customer support agent, knowledge of common customer issues."
+**Bonus feature (optional):** "Implement RAG using a provided knowledge base. For example, for a customer support agent, knowledge of common customer issues."
 
-**Status:** ⬜ Not delivered. This was a scope decision: RAG is a separate piece of work with its own infrastructure, content and evaluation, not one more feature in the code.
+**Status:** ⬜ Not delivered. The brief lists it as optional. This was a scope decision: RAG is a separate piece of work with its own infrastructure, content and evaluation, not one more feature in the code.
 
 ### Why it is not part of this delivery
 
@@ -211,6 +223,7 @@ Steps to add it:
 | Case brief in history | 🟡 The first commit still contains the brief, which is now ignored in `docs/private/` | Rewrite history before the first push, if the brief must not be public |
 | Live language switch with a microphone | ⬜ Tested with synthesized speech through the Pipecat pipeline only | Start `support-agent voice`, speak English, then switch to Spanish and complete a call |
 | RAG over a knowledge base | ⬜ Not delivered. Planned as a potential improvement | Follow the steps in [section 7](#7-not-delivered-rag-over-a-knowledge-base) |
+| Demo video URL | ⬜ To record | Record the video, upload it, and add the URL to the README |
 | Memory across calls | ⬜ Explored, then deferred | Needs a decision on identity verification before history is shown (see README → Potential improvements) |
 | Latency measurement | 🟡 Model latency measured and fixed by the switch to 3.5 Flash. The full voice turn is not measured | Read the Pipecat TTFB metrics per stage (STT, turn detection, LLM, TTS) from a real call |
 | Sample record | 🟡 `examples/sample_conversation.json` predates the `language` and `sentiment` fields | Regenerate it from a current run |
