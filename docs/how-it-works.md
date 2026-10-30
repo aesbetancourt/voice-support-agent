@@ -47,7 +47,8 @@ Every piece of data is a **frame**: an audio chunk, a text, or a signal such as 
 Frames flow through a list of **processors**, and each processor transforms or reacts to frames:
 
 ```
-transport.input → STT → user aggregator → LLM → TTS → transport.output → assistant aggregator
+transport.input → STT → LanguageSwitcher → user aggregator → LLM → ThoughtTagFilter → TTS
+  → transport.output → assistant aggregator
 ```
 
 This exact list is in [`src/support_agent/adapters/inbound/voice.py`](../src/support_agent/adapters/inbound/voice.py), in `run_bot()`.
@@ -62,6 +63,7 @@ This exact list is in [`src/support_agent/adapters/inbound/voice.py`](../src/sup
 | **Aggregators** | Collect your words into one complete turn before they go to Gemini, and keep the **context** (the conversation history) |
 | **Function calling** | When Gemini wants to use a tool (e.g. look up an order), Pipecat calls our Python function and gives the result back to Gemini |
 | **Interruptions** | If you talk while Ava speaks, Pipecat stops her audio |
+| **Custom processors** | `LanguageSwitcher` follows the language STT detects (section 4c). `ThoughtTagFilter` removes `<thought>` tags that Gemini sometimes writes as reply text |
 | **Development runner** | A small web server that starts one pipeline for each browser connection |
 
 Without Pipecat, you would write all of this yourself: audio streaming, turn detection, interruptions and timing.
@@ -268,7 +270,7 @@ voice-support-agent/
 │   ├── bootstrap.py             Connects the adapters to the ports
 │   └── config.py                Reads settings from .env
 │
-├── tests/                       127 tests, no internet needed. Same folders as the code
+├── tests/                       151 tests, no internet needed. Same folders as the code
 │   ├── domain/  application/  adapters/
 │   └── test_architecture.py     Checks that every import points inward
 ├── data/orders.json             10 fake orders

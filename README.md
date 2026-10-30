@@ -121,8 +121,8 @@ Example orders to try: `ORD-104233` (delivered headphones), `ORD-208871` (shippe
 
 Each conversation is saved to `conversations/<id>.json`.
 See [`examples/sample_conversation.json`](examples/sample_conversation.json) for the format.
-That sample comes from a scripted test model, so its summary uses the rule-based fallback
-(`"generated_by": "fallback"`). A live run uses Gemini for the summary.
+That sample is a real voice call: a wrong order number first, then a completed ticket, with a frustration
+reading on each customer turn and a summary written by Gemini.
 
 ## Architecture
 
@@ -130,10 +130,11 @@ The code follows **hexagonal architecture (ports and adapters)**. Dependencies p
 adapters depend on the application, the application depends on the domain, and the domain
 depends on nothing in the project. `tests/test_architecture.py` enforces this rule.
 
-> **Interactive diagram:** [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) shows the whole
-> system on one page: every layer, adapter, port and Google Cloud service, with animated data flow, a dark and
-> light theme, and image export. Open it in a browser. It is a single standalone file, so it also works offline.
-> GitHub shows the file as source code, so download it, or open it from a local clone.
+![Architecture: inbound adapters, application core with ports, domain, outbound adapters and Google Cloud](docs/diagrams/architecture.png)
+
+> **Interactive version:** [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) is the same diagram as
+> one standalone page, with animated data flow, search, focus on a component, a dark theme, and PNG/SVG export.
+> GitHub shows HTML files as source code, so open it from a local clone, or download it and open it in a browser.
 > The diagram's source is [`docs/diagrams/architecture.json`](docs/diagrams/architecture.json), rendered with Archify.
 
 ```mermaid
@@ -167,10 +168,12 @@ flowchart LR
 flowchart LR
     B[Browser<br/>Pipecat prebuilt UI] <-->|WebRTC audio| T
     subgraph P[One Python process]
-        T[SmallWebRTC transport] --> STT[Google STT]
-        STT --> U[User aggregator<br/>Silero VAD]
+        T[SmallWebRTC transport] --> STT[Google STT<br/>Chirp 3, en + es]
+        STT --> LS[LanguageSwitcher]
+        LS --> U[User aggregator<br/>Silero VAD]
         U --> LLM[Gemini on Vertex AI]
-        LLM --> TTS[Google TTS] --> T
+        LLM --> F[ThoughtTagFilter]
+        F --> TTS[Google TTS] --> T
         LLM <-->|tool calls| Core
     end
     CLI[Text CLI<br/>GeminiChatModel] <-->|tool calls| Core
@@ -186,6 +189,8 @@ flowchart LR
 The voice server is one process. The Pipecat development runner serves the browser page and the
 WebRTC signaling endpoint. After the handshake, audio flows directly between the browser and the
 Python process. Each browser connection gets its own pipeline, ticket and record.
+`LanguageSwitcher` follows the language that STT detects (see Languages above). `ThoughtTagFilter` removes
+`<thought>` tags that Gemini sometimes writes as reply text, before TTS speaks them.
 
 ### State machine
 
@@ -301,7 +306,7 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 
 ## Testing
 
-- **`uv run pytest`** runs 127 tests in under a second, with no network. The folders mirror the layers:
+- **`uv run pytest`** runs 151 tests in under a second, with no network. The folders mirror the layers:
   - `tests/domain/`: validators (English and Spanish forms), every state-machine rule, and the frustration policy.
   - `tests/application/`: the tool executor, the sentiment monitor (including failures and timeouts), the message catalog in every language, and full conversations through the agent loop with a scripted `ChatModel`.
   - `tests/adapters/`: Gemini response parsing with a fake client, the voice tool handler, the voice guidance sender, the voice profiles for each language, and the live language switcher.
@@ -329,9 +334,12 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 
 ## Known limitations
 
-- The voice channel and the live Gemini calls need a configured GCP project. They were built against
-  the Pipecat 1.15 and `google-genai` APIs, and the offline tests cover the tool handler. The full audio
-  path must still be tried end to end with real credentials.
+- The voice channel and the live Gemini calls need a configured GCP project with the three APIs enabled.
+  The offline tests use fakes for every Google service.
+- The browser client is Pipecat's generic prebuilt UI. It shows a camera button and a bot video area that
+  this audio-only agent does not use. The UI cannot hide them without a custom client.
+- Gemini can still write a short announcement of its own just before a transfer, next to the fixed
+  closing message. The prompt forbids it, but a prompt rule is not a guarantee.
 - The default model is `gemini-3.5-flash`, not Pipecat's default `gemini-3.8-flash`. In a measurement on
   the `global` endpoint, 3.8 Flash took 2 to 20 seconds per model round, and a voice turn with a tool call
   needs two rounds. 3.5 Flash took about 0.8 seconds per round and passed all simulated customers in both

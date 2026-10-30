@@ -1,16 +1,17 @@
 {
-  "id": "20261030T133757-651488cf",
-  "channel": "text",
+  "id": "20261030T182722-c1b952a1",
+  "channel": "voice",
+  "language": "en",
   "status": "completed",
   "stage": "completed",
-  "started_at": "2026-10-30T13:37:57.050172Z",
-  "ended_at": "2026-10-30T13:37:57.052570Z",
+  "started_at": "2026-10-30T18:27:22.530578Z",
+  "ended_at": "2026-10-30T18:29:08.855782Z",
   "ticket": {
-    "ticket_id": "TCK-767119",
+    "ticket_id": "TCK-651873",
     "order_number": "ORD-104233",
     "customer_name": "Maria Lopez",
     "category": "product_defect",
-    "description": "The left ear cup arrived cracked and the left speaker crackles.",
+    "description": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
     "urgency": "medium"
   },
   "order": {
@@ -29,70 +30,101 @@
   "transcript": [
     {
       "role": "assistant",
-      "text": "Hi, I'm Ava from Acme Store. How can I help you today?",
-      "at": "2026-10-30T13:37:57.050178Z"
+      "text": "Hello! I'm Ava from Acme Store. How can I help you today?",
+      "at": "2026-10-30T18:27:28.303792Z",
+      "sentiment": null
     },
     {
       "role": "user",
-      "text": "Hi, my new headphones arrived broken.",
-      "at": "2026-10-30T13:37:57.050573Z"
+      "text": "Hi, my order number is ORD999999.",
+      "at": "2026-10-30T18:27:37.840526Z",
+      "sentiment": {
+        "frustration": 0.0,
+        "reason": "The customer is politely providing their order number.",
+        "action": "none"
+      }
     },
     {
       "role": "assistant",
-      "text": "I'm sorry to hear that. Could you give me your order number?",
-      "at": "2026-10-30T13:37:57.050777Z"
+      "text": "I'm sorry, but I couldn't find an order with the number O R D, nine nine nine, nine nine nine. Could you please double-check the number and read it to me again?",
+      "at": "2026-10-30T18:27:53.404134Z",
+      "sentiment": null
     },
     {
       "role": "user",
-      "text": "It's ORD 104 323.",
-      "at": "2026-10-30T13:37:57.050941Z"
+      "text": "Yeah, sorry. It is ORD104233.",
+      "at": "2026-10-30T18:28:01.706973Z",
+      "sentiment": {
+        "frustration": 0.0,
+        "reason": "The customer calmly provides the correct order number.",
+        "action": "none"
+      }
     },
     {
       "role": "assistant",
-      "text": "I could not find order ORD-104323. Could you check the number again?",
-      "at": "2026-10-30T13:37:57.051145Z"
+      "text": "Thank you, I found your order for the Aurora wireless headphones. What seems to be the problem with them?",
+      "at": "2026-10-30T18:28:09.832985Z",
+      "sentiment": null
     },
     {
       "role": "user",
-      "text": "It is O R D one zero four two three three.",
-      "at": "2026-10-30T13:37:57.051303Z"
+      "text": "My headphones arrived with a cracked ear cup.",
+      "at": "2026-10-30T18:28:16.992844Z",
+      "sentiment": {
+        "frustration": 0.3,
+        "reason": "Customer is mildly annoyed reporting damaged product.",
+        "action": "none"
+      }
     },
     {
       "role": "assistant",
-      "text": "Thanks, Maria. I see your Aurora wireless headphones were delivered on October 16. What exactly is wrong with them?",
-      "at": "2026-10-30T13:37:57.051559Z"
+      "text": "I'm so sorry to hear that your headphones arrived damaged. Since they arrived cracked, I would classify this as a medium urgency issue so we can get this resolved for you quickly.",
+      "at": "2026-10-30T18:28:28.843094Z",
+      "sentiment": null
     },
     {
       "role": "user",
-      "text": "The left ear cup is cracked and the left speaker crackles.",
-      "at": "2026-10-30T13:37:57.051742Z"
+      "text": "Yeah, medium medium is is fine.",
+      "at": "2026-10-30T18:28:32.576884Z",
+      "sentiment": {
+        "frustration": 0.0,
+        "reason": "Customer calmly agrees with the agent's proposed urgency level.",
+        "action": "none"
+      }
     },
     {
       "role": "assistant",
-      "text": "Here is your ticket: order ORD-104233, a product defect, the left ear cup arrived cracked and the left speaker crackles, medium urgency. Is that correct?",
-      "at": "2026-10-30T13:37:57.051939Z"
+      "text": "I have created a support ticket for you. The order number is O R D, one zero four, two three three. The issue is that your Aurora wireless headphones arrived with a cracked ear cup, and we have set the urgency to medium. Is all of this correct?",
+      "at": "2026-10-30T18:28:50.402285Z",
+      "sentiment": null
     },
     {
       "role": "user",
-      "text": "Yes, that's correct.",
-      "at": "2026-10-30T13:37:57.052118Z"
+      "text": "Yeah, that is correct.",
+      "at": "2026-10-30T18:28:53.973347Z",
+      "sentiment": {
+        "frustration": 0.0,
+        "reason": "Customer calmly confirmed the details are correct.",
+        "action": "none"
+      }
     },
     {
       "role": "assistant",
-      "text": "Your ticket is submitted. The reference is TCK-767119. Our team will contact you soon. Thank you for contacting Acme Store. Goodbye!",
-      "at": "2026-10-30T13:37:57.052363Z"
+      "text": "Your ticket is submitted. The reference is TCK-651873. Our team will contact you soon. Thank you for contacting Acme Store. Goodbye!",
+      "at": "2026-10-30T18:28:55.304022Z",
+      "sentiment": null
     }
   ],
   "tool_calls": [
     {
       "name": "lookup_order",
       "arguments": {
-        "order_number": "ORD 104 323"
+        "order_number": "ORD999999"
       },
       "result": {
         "ok": false,
         "rejected": {
-          "order_number": "No order ORD-104323 exists. Ask the customer to check the number."
+          "order_number": "No order ORD-999999 exists. Ask the customer to check the number."
         },
         "stage": "collecting",
         "missing_fields": [
@@ -102,12 +134,12 @@
           "urgency"
         ]
       },
-      "at": "2026-10-30T13:37:57.051142Z"
+      "at": "2026-10-30T18:27:41.968051Z"
     },
     {
       "name": "lookup_order",
       "arguments": {
-        "order_number": "o r d one zero four two three three"
+        "order_number": "ORD104233"
       },
       "result": {
         "ok": true,
@@ -129,26 +161,41 @@
           "urgency"
         ]
       },
-      "at": "2026-10-30T13:37:57.051555Z"
+      "at": "2026-10-30T18:28:02.989617Z"
     },
     {
       "name": "update_ticket",
       "arguments": {
-        "category": "product_defect",
-        "description": "The left ear cup arrived cracked and the left speaker crackles.",
+        "description": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
+        "category": "product_defect"
+      },
+      "result": {
+        "ok": true,
+        "accepted": {
+          "description": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
+          "category": "product_defect"
+        },
+        "stage": "collecting",
+        "missing_fields": [
+          "urgency"
+        ]
+      },
+      "at": "2026-10-30T18:28:17.852219Z"
+    },
+    {
+      "name": "update_ticket",
+      "arguments": {
         "urgency": "medium"
       },
       "result": {
         "ok": true,
         "accepted": {
-          "category": "product_defect",
-          "description": "The left ear cup arrived cracked and the left speaker crackles.",
           "urgency": "medium"
         },
         "stage": "collecting",
         "missing_fields": []
       },
-      "at": "2026-10-30T13:37:57.051930Z"
+      "at": "2026-10-30T18:28:33.857238Z"
     },
     {
       "name": "review_ticket",
@@ -160,45 +207,43 @@
           "order_number": "ORD-104233",
           "customer_name": "Maria Lopez",
           "category": "product_defect",
-          "description": "The left ear cup arrived cracked and the left speaker crackles.",
+          "description": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
           "urgency": "medium"
         },
         "stage": "confirming",
         "missing_fields": []
       },
-      "at": "2026-10-30T13:37:57.051937Z"
+      "at": "2026-10-30T18:28:34.579858Z"
     },
     {
       "name": "finalize_ticket",
       "arguments": {},
       "result": {
         "ok": true,
-        "ticket_id": "TCK-767119",
+        "ticket_id": "TCK-651873",
         "stage": "completed",
         "missing_fields": []
       },
-      "at": "2026-10-30T13:37:57.052360Z"
+      "at": "2026-10-30T18:28:55.303795Z"
     }
   ],
   "validation_events": [
     {
       "field": "order_number",
-      "value": "ORD-104323",
-      "error": "No order ORD-104323 exists. Ask the customer to check the number.",
-      "at": "2026-10-30T13:37:57.051135Z"
+      "value": "ORD-999999",
+      "error": "No order ORD-999999 exists. Ask the customer to check the number.",
+      "at": "2026-10-30T18:27:41.968005Z"
     }
   ],
   "summary": {
-    "headline": "Ticket TCK-767119 opened for order ORD-104233.",
+    "headline": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
     "key_points": [
-      "Order: ORD-104233",
-      "Category: product_defect",
-      "Urgency: medium",
-      "Description: The left ear cup arrived cracked and the left speaker crackles.",
-      "Ticket: TCK-767119"
+      "The customer initially provided an incorrect order number but corrected it to ORD-104233.",
+      "The Aurora wireless headphones arrived with a cracked ear cup.",
+      "The agent created ticket TCK-651873 with medium urgency."
     ],
     "customer_sentiment": "neutral",
-    "next_action": "Handle the ticket in the support queue.",
-    "generated_by": "fallback"
+    "next_action": "Contact the customer to resolve the issue with the damaged headphones.",
+    "generated_by": "gemini-3.5-flash"
   }
 }

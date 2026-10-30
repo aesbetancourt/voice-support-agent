@@ -8,8 +8,8 @@ how the plan changed during the work, and what is still open.
 |---|---|
 | **Status** | All core requirements met. Bonus features: 3 of 4 (RAG is not delivered, see [section 7](#7-not-delivered-rag-over-a-knowledge-base)). The demo video URL is still to add. Open items listed in [section 8](#8-open-items) |
 | **Code** | `src/support_agent/`, hexagonal architecture ([diagram](diagrams/architecture.html)) |
-| **Tests** | 127 automated tests, no network. 7 live simulated personas, passing in English and Spanish |
-| **History** | 12 commits on `main` in a local Git repository. No remote yet |
+| **Tests** | 151 automated tests, no network. 7 live simulated personas, passing in English and Spanish |
+| **History** | Commits on `main` in a local Git repository. No remote yet |
 | **Decisions** | [ADR-0001 to ADR-0009](adr/) |
 
 ---
@@ -63,10 +63,10 @@ Legend: ✅ done · 🟡 done with a caveat · ⬜ not done
 
 | # | Deliverable | Status | How it is met | Evidence |
 |---|---|---|---|---|
-| 4.1 | Source code in a Git repository | 🟡 | A local Git repository with 12 commits. **No remote is created or pushed yet** | `git log` |
+| 4.1 | Source code in a Git repository | 🟡 | A local Git repository. **No remote is created or pushed yet** | `git log` |
 | 4.2 | README: setup instructions | ✅ | Prerequisites, `uv sync`, Google Cloud setup (APIs, ADC, quota project), the `.env` file, and the run commands | [README → Setup](../README.md#setup) |
 | 4.3 | README: system architecture overview | ✅ | Hexagonal view, voice runtime view, state machine, tools and project structure | [README → Architecture](../README.md#architecture) · [diagram](diagrams/architecture.html) |
-| 4.4 | README: key design decisions | ✅ | A decision table in the README, plus 8 ADRs that record the rejected alternatives | [README → Key design decisions](../README.md#key-design-decisions) · [ADRs](adr/) |
+| 4.4 | README: key design decisions | ✅ | A decision table in the README, plus 9 ADRs that record the rejected alternatives | [README → Key design decisions](../README.md#key-design-decisions) · [ADRs](adr/) |
 | 4.5 | README: potential improvements | ✅ | A table by area: speech, sentiment, latency, knowledge (RAG), identity, conversation, languages, data, evaluation, production, security | [README → Potential improvements](../README.md#potential-improvements) |
 | 4.6 | URL to a demo video of sample conversations | ⬜ | To record. The script covers a full ticket, an invalid order number, frustration with escalation, and a live switch to Spanish | — |
 
@@ -162,7 +162,7 @@ Details: [README → State machine](../README.md#state-machine).
 
 | Check | Result | Scope |
 |---|---|---|
-| Automated tests | 127 pass in under 1 second | Domain, application, adapters (with fakes), architecture rule |
+| Automated tests | 151 pass in under 1 second | Domain, application, adapters (with fakes), architecture rule |
 | Lint | `ruff check` clean | All of `src/` and `tests/` |
 | Simulated customers, English | 7/7 pass, live Gemini | Text channel, end to end |
 | Simulated customers, Spanish | 7/7 pass, live Gemini | Text channel, end to end |
@@ -170,8 +170,9 @@ Details: [README → State machine](../README.md#state-machine).
 | Gemini latency per model round | 3.8 Flash: 2 to 20 s, unstable. 3.5 Flash: about 0.8 s | One tool turn and one reply turn, `global` endpoint, 3 runs each |
 | Language detection, streaming | Chirp 3 with `en-US` + `es-US` detected both samples, with phrase hints | TTS audio through Pipecat's Google STT and the switcher, no microphone |
 | Spanish speech round trip | `chirp_3` streaming transcribed "ORD104233" correctly | TTS audio sent to STT, no microphone |
-| Voice call, English | Completed with a ticket, heard by the owner | Real microphone and browser |
-| Voice call, Spanish | Server starts. **Not yet tried with a microphone** | Startup only |
+| Voice call, English | Wrong order number rejected, then a ticket completed | Real microphone, recorded in the demo video |
+| Voice call, Spanish | Live switch from English to Spanish on the first sentence, formal "usted" until the goodbye | Real microphone, recorded in the demo video |
+| Voice call, frustration | Second angry turn scored 0.8, call escalated to a human | Real microphone, recorded in the demo video |
 
 ---
 
@@ -221,9 +222,7 @@ Steps to add it:
 |---|---|---|
 | Git remote | ⬜ Not created | Create the remote repository and push `main` |
 | Case brief in history | 🟡 The first commit still contains the brief, which is now ignored in `docs/private/` | Rewrite history before the first push, if the brief must not be public |
-| Live language switch with a microphone | ⬜ Tested with synthesized speech through the Pipecat pipeline only | Start `support-agent voice`, speak English, then switch to Spanish and complete a call |
 | RAG over a knowledge base | ⬜ Not delivered. Planned as a potential improvement | Follow the steps in [section 7](#7-not-delivered-rag-over-a-knowledge-base) |
 | Demo video URL | ⬜ To record | Record the video, upload it, and add the URL to the README |
 | Memory across calls | ⬜ Explored, then deferred | Needs a decision on identity verification before history is shown (see README → Potential improvements) |
 | Latency measurement | 🟡 Model latency measured and fixed by the switch to 3.5 Flash. The full voice turn is not measured | Read the Pipecat TTFB metrics per stage (STT, turn detection, LLM, TTS) from a real call |
-| Sample record | 🟡 `examples/sample_conversation.json` predates the `language` and `sentiment` fields | Regenerate it from a current run |
