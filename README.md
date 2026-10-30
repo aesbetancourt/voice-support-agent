@@ -213,6 +213,14 @@ docs/how-it-works.md         # Guided explanation of the system
 
 ## Key design decisions
 
+The main decisions, with the alternatives we rejected, are recorded as ADRs in [`docs/adr/`](docs/adr/):
+[0001 code owns the ticket state](docs/adr/0001-code-owns-the-ticket-state.md),
+[0002 Google Cloud only](docs/adr/0002-google-cloud-only-stack.md),
+[0003 cascaded pipeline](docs/adr/0003-cascaded-voice-pipeline.md),
+[0004 Pipecat in one process](docs/adr/0004-pipecat-single-process-webrtc.md),
+[0005 hexagonal architecture](docs/adr/0005-hexagonal-architecture.md),
+[0006 no Pipecat Flows](docs/adr/0006-own-state-machine-not-pipecat-flows.md).
+
 | Decision | Reason |
 |---|---|
 | **Code decides completion, not the LLM** | The LLM proposes values through tool calls. `TicketSession` validates them and owns the stage. The LLM cannot finalize without a read-back, or skip a missing field. This makes the flow predictable and testable |
