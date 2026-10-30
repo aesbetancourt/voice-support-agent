@@ -1,4 +1,4 @@
-from support_agent.tools import TOOL_SPECS, ToolExecutor
+from support_agent.application.tools import TOOL_SPECS, ToolExecutor
 
 
 def test_tool_specs_have_valid_schemas():

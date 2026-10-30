@@ -1,7 +1,7 @@
 import pytest
 
-from support_agent.models import Category, Urgency
-from support_agent.validators import (
+from support_agent.domain.models import Category, Urgency
+from support_agent.domain.validators import (
     normalize_order_number,
     parse_category,
     parse_urgency,

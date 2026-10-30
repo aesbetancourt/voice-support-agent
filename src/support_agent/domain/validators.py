@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from support_agent.models import Category, Urgency
+from support_agent.domain.models import Category, Urgency
 
 ORDER_NUMBER_RE = re.compile(r"^ORD(\d{6})$")
 ORDER_NUMBER_HINT = "Order numbers look like ORD-123456: the letters ORD and six digits."

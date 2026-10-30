@@ -1,4 +1,4 @@
-"""Command-line entry point: ``support-agent chat | voice | simulate``."""
+"""Inbound adapter: the command line, ``support-agent chat | voice | simulate``."""
 
 from __future__ import annotations
 
@@ -11,30 +11,22 @@ from google.auth.exceptions import GoogleAuthError
 from google.genai import errors as genai_errors
 from loguru import logger
 
+from support_agent.adapters.inbound.simulate import PERSONAS, run_persona
+from support_agent.adapters.outbound.gemini import make_client
+from support_agent.bootstrap import make_summarizer, make_text_agent, new_conversation
 from support_agent.config import ConfigError, Settings
-from support_agent.conversation import new_conversation
-from support_agent.gemini import make_client
-from support_agent.models import ConversationRecord
-from support_agent.prompts import system_prompt
-from support_agent.simulate import PERSONAS, run_persona
-from support_agent.summary import GeminiSummarizer, SafeSummarizer
-from support_agent.text_agent import GeminiChatModel, TextAgent
+from support_agent.domain.models import ConversationRecord
 
 MAX_INPUT_CHARS = 2000
+VOICE_MODULE = "support_agent.adapters.inbound.voice"
 _QUIT_COMMANDS = {"/quit", "/exit"}
 _TECHNICAL_ERROR = "Sorry, I have a technical problem and must stop. Your conversation is saved."
 
 
 async def run_chat(settings: Settings) -> None:
     client = make_client(settings)
-    conversation = new_conversation(
-        settings, "text", SafeSummarizer(GeminiSummarizer(client, settings.summary_model))
-    )
-    agent = TextAgent(
-        GeminiChatModel(client, settings.model, system_prompt("text")),
-        conversation.executor,
-        conversation.recorder,
-    )
+    conversation = new_conversation(settings, "text", make_summarizer(settings, client))
+    agent = make_text_agent(settings, client, conversation)
     print("Orbio Store support chat. Type /quit to leave.\n")
     # Config, auth and model errors show up here, before anything is saved.
     reply = await agent.greet()
@@ -56,7 +48,7 @@ async def run_chat(settings: Settings) -> None:
         print(f"\nagent> {_TECHNICAL_ERROR}\n")
     finally:
         record = await conversation.recorder.finish()
-        _print_record(record, conversation.recorder.path)
+        _print_record(record, conversation.recorder.location)
 
 
 async def run_simulations(settings: Settings, persona_name: str, max_turns: int) -> int:
@@ -80,13 +72,13 @@ async def run_simulations(settings: Settings, persona_name: str, max_turns: int)
     return 1 if failures else 0
 
 
-def _print_record(record: ConversationRecord, path: os.PathLike[str]) -> None:
+def _print_record(record: ConversationRecord, location: str) -> None:
     print("-" * 60)
     print(f"Status: {record.status.value}")
     print(f"Ticket: {record.ticket.model_dump_json(exclude_none=True)}")
     if record.summary:
         print(f"Summary: {record.summary.headline}")
-    print(f"Saved:  {path}")
+    print(f"Saved:  {location}")
 
 
 def _run_voice(extra_args: list[str]) -> None:
@@ -94,7 +86,7 @@ def _run_voice(extra_args: list[str]) -> None:
     # so start the bot module as the main program. Only the WebRTC transport is used.
     if not {"-t", "--transport"} & set(extra_args):
         extra_args = ["-t", "webrtc", *extra_args]
-    os.execv(sys.executable, [sys.executable, "-m", "support_agent.voice.bot", *extra_args])
+    os.execv(sys.executable, [sys.executable, "-m", VOICE_MODULE, *extra_args])
 
 
 def main(argv: list[str] | None = None) -> None:

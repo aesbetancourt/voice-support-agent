@@ -1,17 +1,19 @@
-"""End-to-end text conversations with a scripted model instead of Gemini."""
+"""End-to-end conversations through the agent loop, with a scripted ChatModel (no network)."""
 
 import json
+from pathlib import Path
 
 import pytest
 
-from support_agent.models import ConversationStatus, Stage
-from support_agent.orders import OrderRepository
-from support_agent.recorder import ConversationRecorder
-from support_agent.state import TicketSession
-from support_agent.storage import ConversationStore
-from support_agent.summary import SafeSummarizer
-from support_agent.text_agent import FALLBACK_REPLY, FunctionCall, ModelReply, TextAgent
-from support_agent.tools import ToolExecutor
+from support_agent.adapters.outbound.json_orders import JsonOrderRepository
+from support_agent.adapters.outbound.json_store import JsonConversationStore
+from support_agent.application.agent import FALLBACK_REPLY, TextAgent
+from support_agent.application.ports import FunctionCall, ModelReply
+from support_agent.application.recorder import ConversationRecorder
+from support_agent.application.summary import SafeSummarizer
+from support_agent.application.tools import ToolExecutor
+from support_agent.domain.models import ConversationStatus, Stage
+from support_agent.domain.state import TicketSession
 
 
 class ScriptedModel:
@@ -39,11 +41,11 @@ def call(name, **arguments):
 
 
 @pytest.fixture
-def make_agent(orders: OrderRepository, tmp_path):
+def make_agent(orders: JsonOrderRepository, tmp_path):
     def build(replies):
-        session = TicketSession(orders)
+        session = TicketSession(orders.get)
         recorder = ConversationRecorder(
-            "text", session, ConversationStore(tmp_path), SafeSummarizer(FailingSummarizer())
+            "text", session, JsonConversationStore(tmp_path), SafeSummarizer(FailingSummarizer())
         )
         model = ScriptedModel(replies)
         agent = TextAgent(model, ToolExecutor(session, recorder.add_tool_call), recorder)
@@ -122,7 +124,7 @@ async def test_recorder_skips_duplicate_consecutive_turn(make_agent):
 async def test_dropped_conversation_is_saved_as_abandoned(make_agent):
     agent, _, _, recorder = make_agent([ModelReply(text="Hi!")])
     await agent.greet()
-    assert recorder.path.exists()
+    assert Path(recorder.location).exists()
     record = await recorder.finish()
     assert record.status is ConversationStatus.ABANDONED
     assert record.summary.headline.startswith("Conversation ended before")

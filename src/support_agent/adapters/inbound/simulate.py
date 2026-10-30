@@ -1,4 +1,4 @@
-"""Simulated customers: Gemini plays a customer persona against the text agent.
+"""Inbound adapter: Gemini plays a customer persona and drives the text agent.
 
 Use it to test the agent on difficult behavior without manual calls.
 Each run is saved like a real conversation.
@@ -11,12 +11,9 @@ from dataclasses import dataclass
 from google import genai
 from google.genai import types
 
+from support_agent.bootstrap import make_summarizer, make_text_agent, new_conversation
 from support_agent.config import Settings
-from support_agent.conversation import new_conversation
-from support_agent.models import ConversationRecord, ConversationStatus
-from support_agent.prompts import system_prompt
-from support_agent.summary import GeminiSummarizer, SafeSummarizer
-from support_agent.text_agent import GeminiChatModel, TextAgent
+from support_agent.domain.models import ConversationRecord, ConversationStatus
 
 _CUSTOMER_RULES = """\
 You play a customer who contacts Orbio Store support by chat.
@@ -111,14 +108,8 @@ class SimulatedCustomer:
 async def run_persona(
     settings: Settings, client: genai.Client, persona: Persona, max_turns: int
 ) -> SimulationResult:
-    conversation = new_conversation(
-        settings, "text", SafeSummarizer(GeminiSummarizer(client, settings.summary_model))
-    )
-    agent = TextAgent(
-        GeminiChatModel(client, settings.model, system_prompt("text")),
-        conversation.executor,
-        conversation.recorder,
-    )
+    conversation = new_conversation(settings, "text", make_summarizer(settings, client))
+    agent = make_text_agent(settings, client, conversation)
     customer = SimulatedCustomer(client, settings.model, persona)
 
     turns = 0

@@ -1,47 +1,22 @@
-"""Conversation summary: Gemini structured output, with a rule-based fallback."""
+"""Conversation summary rules: the LLM input, and a rule-based fallback.
+
+The LLM call itself is an outbound adapter (``adapters.outbound.gemini``).
+"""
 
 from __future__ import annotations
 
 import json
-from typing import Protocol
 
-from google import genai
-from google.genai import types
 from loguru import logger
 
-from support_agent.models import ConversationRecord, Sentiment, Stage, Summary, SummaryDraft
+from support_agent.application.ports import Summarizer
+from support_agent.domain.models import ConversationRecord, Sentiment, Stage, Summary
 
-_INSTRUCTION = """\
+SUMMARY_INSTRUCTION = """\
 You summarize customer support conversations for the support team.
 Use only facts from the transcript and the ticket. Do not invent details.
 Write short, plain sentences.
 """
-
-
-class Summarizer(Protocol):
-    async def summarize(self, record: ConversationRecord) -> Summary: ...
-
-
-class GeminiSummarizer:
-    def __init__(self, client: genai.Client, model: str):
-        self._client = client
-        self._model = model
-
-    async def summarize(self, record: ConversationRecord) -> Summary:
-        response = await self._client.aio.models.generate_content(
-            model=self._model,
-            contents=_summary_input(record),
-            config=types.GenerateContentConfig(
-                system_instruction=_INSTRUCTION,
-                response_mime_type="application/json",
-                response_schema=SummaryDraft,
-                temperature=0.2,
-            ),
-        )
-        draft = response.parsed
-        if not isinstance(draft, SummaryDraft):
-            draft = SummaryDraft.model_validate_json(response.text or "")
-        return Summary(**draft.model_dump(), generated_by=self._model)
 
 
 class SafeSummarizer:
@@ -95,7 +70,8 @@ def fallback_summary(record: ConversationRecord) -> Summary:
     )
 
 
-def _summary_input(record: ConversationRecord) -> str:
+def summary_input(record: ConversationRecord) -> str:
+    """The text an LLM summarizer receives for one conversation."""
     transcript = "\n".join(f"{turn.role}: {turn.text}" for turn in record.transcript)
     ticket = json.dumps(record.ticket.model_dump(mode="json"), indent=2)
     return (

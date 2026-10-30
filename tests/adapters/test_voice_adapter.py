@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 from pipecat.frames.frames import EndWorkerFrame, TTSSpeakFrame
 
-from support_agent.tools import TOOL_SPECS, ToolExecutor
-from support_agent.voice.bot import build_tools_schema, make_tool_handler
+from support_agent.adapters.inbound.voice import build_tools_schema, make_tool_handler
+from support_agent.application.tools import TOOL_SPECS, ToolExecutor
 
 
 class FakeLLM:

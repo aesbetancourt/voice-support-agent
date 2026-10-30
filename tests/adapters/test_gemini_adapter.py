@@ -4,7 +4,8 @@ from types import SimpleNamespace
 
 from google.genai import types
 
-from support_agent.text_agent import FunctionCall, GeminiChatModel
+from support_agent.adapters.outbound.gemini import GeminiChatModel
+from support_agent.application.ports import FunctionCall
 
 
 class FakeModels:

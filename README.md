@@ -16,6 +16,8 @@ The whole stack runs on Google Cloud:
 
 The same agent also runs as a text chat in the terminal, for fast testing without audio.
 
+New to Pipecat or to this codebase? Read [docs/how-it-works.md](docs/how-it-works.md) first.
+
 ## What the agent collects
 
 | Field | Validation |
@@ -92,6 +94,37 @@ That sample comes from a scripted test model, so its summary uses the rule-based
 
 ## Architecture
 
+The code follows **hexagonal architecture (ports and adapters)**. Dependencies point inward only:
+adapters depend on the application, the application depends on the domain, and the domain
+depends on nothing in the project. `tests/test_architecture.py` enforces this rule.
+
+```mermaid
+flowchart LR
+    subgraph IN[Inbound adapters]
+        CLI[cli.py]
+        VOICE[voice.py<br/>Pipecat]
+        SIM[simulate.py]
+    end
+    subgraph HEX[Application core]
+        direction TB
+        APP[application/<br/>tools, agent, recorder, summary, prompts]
+        PORTS[[ports.py<br/>OrderRepository, ConversationStore,<br/>ChatModel, Summarizer]]
+        DOM[domain/<br/>TicketSession, validators, models]
+        APP --> DOM
+        APP --> PORTS
+    end
+    subgraph OUT[Outbound adapters]
+        GEM[gemini.py<br/>Vertex AI]
+        JO[json_orders.py]
+        JS[json_store.py]
+    end
+    IN --> APP
+    OUT -. implement .-> PORTS
+    BOOT[bootstrap.py<br/>composition root] -. wires .-> IN & OUT
+```
+
+### Runtime view (voice)
+
 ```mermaid
 flowchart LR
     B[Browser<br/>Pipecat prebuilt UI] <-->|WebRTC audio| T
@@ -102,8 +135,8 @@ flowchart LR
         LLM --> TTS[Google TTS] --> T
         LLM <-->|tool calls| Core
     end
-    CLI[Text CLI<br/>google-genai SDK] <-->|tool calls| Core
-    subgraph Core[Domain core: pure Python]
+    CLI[Text CLI<br/>GeminiChatModel] <-->|tool calls| Core
+    subgraph Core[Application + domain]
         X[ToolExecutor] --> S[TicketSession<br/>state machine]
         S --> V[Validators]
         S --> O[(orders.json)]
@@ -150,23 +183,32 @@ A dropped call or a closed chat while the ticket is open is saved as `abandoned`
 
 ```
 src/support_agent/
-├── models.py         # Pydantic models: Order, Ticket, ConversationRecord, Summary
-├── validators.py     # Order-number normalizer, category/urgency parsers, description check
-├── orders.py         # Mock order repository
-├── state.py          # TicketSession: the state machine and validation rules
-├── tools.py          # Tool specs (SDK-neutral) and ToolExecutor
-├── recorder.py       # Transcript, tool calls, saves after each turn, final summary
-├── storage.py        # Atomic JSON file storage
-├── summary.py        # Gemini structured-output summary + rule-based fallback
-├── prompts.py        # System prompt, with voice and text style variants
-├── conversation.py   # Builds session + recorder + executor for one conversation
-├── gemini.py         # Vertex AI client with retries and timeout
-├── text_agent.py     # Text channel: agent loop with manual function calling
-├── simulate.py       # Simulated customer personas
-├── cli.py            # support-agent chat | voice | simulate
-└── voice/bot.py      # Pipecat pipeline: WebRTC → STT → Gemini → TTS
-tests/                # Validators, state machine, tools, text agent, voice handler
-data/orders.json      # Mock orders
+├── domain/                  # Pure business rules. Imports nothing from the project
+│   ├── models.py            # Pydantic models: Order, Ticket, ConversationRecord, Summary
+│   ├── validators.py        # Order-number normalizer, category/urgency parsers, description check
+│   └── state.py             # TicketSession: the state machine and validation rules
+├── application/             # Use cases. Depends on the domain and its own ports only
+│   ├── ports.py             # OrderRepository, ConversationStore, ChatModel, Summarizer
+│   ├── tools.py             # Tool specs (SDK-neutral) and ToolExecutor
+│   ├── agent.py             # TextAgent: the turn loop for text and simulations
+│   ├── recorder.py          # Transcript, tool calls, saves after each turn, final summary
+│   ├── summary.py           # Summary input, SafeSummarizer, rule-based fallback
+│   └── prompts.py           # System prompt, with voice and text style variants
+├── adapters/
+│   ├── inbound/             # Driving adapters: how customers and operators reach the app
+│   │   ├── cli.py           # support-agent chat | voice | simulate
+│   │   ├── voice.py         # Pipecat pipeline: WebRTC → STT → Gemini → TTS
+│   │   └── simulate.py      # Simulated customer personas
+│   └── outbound/            # Driven adapters: implementations of the ports
+│       ├── gemini.py        # Vertex AI client, GeminiChatModel, GeminiSummarizer
+│       ├── json_orders.py   # JsonOrderRepository
+│       └── json_store.py    # JsonConversationStore (atomic writes)
+├── bootstrap.py             # Composition root: wires adapters to ports
+└── config.py                # Settings from .env
+tests/                       # Mirrors the layers: domain/, application/, adapters/
+├── test_architecture.py     # Fails if a layer imports outward
+data/orders.json             # Mock orders
+docs/how-it-works.md         # Guided explanation of the system
 ```
 
 ## Key design decisions
@@ -177,7 +219,9 @@ data/orders.json      # Mock orders
 | **Validation errors go back to the LLM** | A rejected value returns a short reason. The LLM tells the customer and asks again. After 3 failures on one field, the session escalates, so the customer is never stuck in a loop |
 | **Validation against data, not only format** | `lookup_order` checks that the order exists. It returns the order status, so the agent can use it ("your headphones were delivered on October 16"). A warning appears when the category does not fit the status, e.g. a defect on an undelivered order |
 | **Fixed closing messages** | When a conversation closes, the executor returns a fixed message with the ticket ID. Voice speaks it with `TTSSpeakFrame` and ends the call. The LLM does not run again, so it cannot invent a reference number |
-| **One domain core, two channels** | Text and voice share the state machine, tools, recorder and storage. Only the LLM loop differs. The CLI gives a fast, cheap test loop, and the core is unit-tested without audio or network |
+| **Hexagonal architecture** | The domain and application have no SDK imports. Gemini, Pipecat and the JSON files are adapters behind ports, so each can change without touching the rules. A test enforces the dependency direction |
+| **The domain receives a lookup function, not a repository** | `TicketSession` takes `find_order: Callable[[str], Order \| None]`. The domain stays free of any port or adapter import, and tests pass a plain function or dict lookup |
+| **One core, three inbound adapters** | Text, voice and simulations share the state machine, tools, recorder and storage. Only the LLM loop differs. The CLI gives a fast, cheap test loop, and the core is unit-tested without audio or network |
 | **Cascaded STT → LLM → TTS, not speech-to-speech** | Matches the brief (separate transcription and TTS). STT phrase hints improve order-number recognition. Each stage can be inspected and logged |
 | **All Google Cloud** | One vendor and one auth method (ADC). Pipecat has native Google STT, TTS and Vertex AI services |
 | **Spoken-form normalization in code** | STT writes order numbers in many ways ("OR D", "one oh four", "double three"). Deterministic normalization is cheaper and more reliable than asking the LLM to clean them |
@@ -203,10 +247,11 @@ data/orders.json      # Mock orders
 
 ## Testing
 
-- **`uv run pytest`** runs 52 tests in under a second, with no network: validators, every
-  state-machine rule, the tool executor, Gemini response parsing with a fake client,
-  full text conversations with a scripted model,
-  and the voice tool handler (closing message and end of call).
+- **`uv run pytest`** runs 67 tests in under a second, with no network. The folders mirror the layers:
+  - `tests/domain/`: validators and every state-machine rule.
+  - `tests/application/`: the tool executor, and full conversations through the agent loop with a scripted `ChatModel`.
+  - `tests/adapters/`: Gemini response parsing with a fake client, and the voice tool handler.
+  - `tests/test_architecture.py`: one check per file that the layer imports only inward.
 - **`uv run support-agent simulate`** runs Gemini as six customer personas against the real agent:
   cooperative, wrong order number first, correction during read-back, rambling, demands a human,
   and never gives a valid order number. Each persona has an expected outcome, and the command
@@ -220,7 +265,7 @@ data/orders.json      # Mock orders
 | Latency | Measure time-to-first-audio per stage with Pipecat metrics. Try Gemini Live (speech-to-speech) on Vertex AI for lower latency, and compare extraction accuracy |
 | Identity | Verify the customer (email or postcode) against the order before sharing order details |
 | Conversation | Handle silence with a user-idle timeout. Support several problems in one call. Support more languages |
-| Data | Replace JSON files with a database (Firestore or Cloud SQL). Send tickets to a real helpdesk (Zendesk, Jira). Keep the call audio for quality review |
+| Data | Replace the JSON files with a database by adding a new `ConversationStore` adapter (Firestore or Cloud SQL). Send tickets to a real helpdesk (Zendesk, Jira). Keep the call audio for quality review |
 | Evaluation | Run the simulated customers in CI, add more personas, and score the summaries with an LLM judge. Add audio-level evals with `pipecat eval` |
 | Production | Split the signaling server and the bot workers, so heavy calls scale separately. Deploy on Cloud Run. Use a TURN server for restrictive networks. Add tracing and dashboards |
 | Security | Redact personal data in logs and records. Add a retention policy for conversation files |

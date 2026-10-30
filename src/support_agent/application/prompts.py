@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from support_agent.models import Category
+from support_agent.domain.models import Category
 
 _CATEGORIES = ", ".join(c.value for c in Category)
 

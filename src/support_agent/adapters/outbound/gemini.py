@@ -1,52 +1,36 @@
-"""Text channel: the agent loop over Gemini with manual function calling."""
+"""Gemini on Vertex AI adapters for the ``ChatModel`` and ``Summarizer`` ports."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any
 
 from google import genai
 from google.genai import types
 
-from support_agent.prompts import GREETING_TRIGGER
-from support_agent.recorder import ConversationRecorder
-from support_agent.tools import TOOL_SPECS, ToolExecutor
+from support_agent.application.ports import FunctionCall, ModelReply
+from support_agent.application.summary import SUMMARY_INSTRUCTION, summary_input
+from support_agent.application.tools import TOOL_SPECS
+from support_agent.config import Settings
+from support_agent.domain.models import ConversationRecord, Summary, SummaryDraft
 
-# Stops a model that keeps calling tools without ever answering the customer.
-MAX_TOOL_ROUNDS = 6
-FALLBACK_REPLY = "Sorry, I did not catch that. Could you say it again?"
-
-
-@dataclass(frozen=True)
-class FunctionCall:
-    name: str
-    arguments: dict[str, Any]
-    call_id: str | None = None
+# Retry rate limits and server errors with exponential backoff.
+_RETRY = types.HttpRetryOptions(attempts=3, initial_delay=1.0, max_delay=8.0)
+_TIMEOUT_MS = 30_000
 
 
-@dataclass(frozen=True)
-class ModelReply:
-    text: str
-    function_calls: list[FunctionCall] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class AgentReply:
-    text: str
-    ended: bool = False
-
-
-class ChatModel(Protocol):
-    """A chat model that keeps its own conversation history."""
-
-    async def send_text(self, text: str) -> ModelReply: ...
-
-    async def send_tool_results(
-        self, results: list[tuple[FunctionCall, dict[str, Any]]]
-    ) -> ModelReply: ...
+def make_client(settings: Settings) -> genai.Client:
+    """Create a Vertex AI client. Auth uses Application Default Credentials."""
+    return genai.Client(
+        vertexai=True,
+        project=settings.require_project(),
+        location=settings.location,
+        http_options=types.HttpOptions(timeout=_TIMEOUT_MS, retry_options=_RETRY),
+    )
 
 
 class GeminiChatModel:
+    """``ChatModel`` port with manual function calling."""
+
     def __init__(self, client: genai.Client, model: str, system_prompt: str):
         self._client = client
         self._model = model
@@ -111,33 +95,25 @@ class GeminiChatModel:
         return ModelReply(text=text.strip(), function_calls=calls)
 
 
-class TextAgent:
-    def __init__(self, model: ChatModel, executor: ToolExecutor, recorder: ConversationRecorder):
+class GeminiSummarizer:
+    """``Summarizer`` port with Gemini structured output."""
+
+    def __init__(self, client: genai.Client, model: str):
+        self._client = client
         self._model = model
-        self._executor = executor
-        self._recorder = recorder
 
-    async def greet(self) -> AgentReply:
-        # The greeting trigger is an instruction, not customer speech, so it is not recorded.
-        return await self._run(await self._model.send_text(GREETING_TRIGGER))
-
-    async def respond(self, user_text: str) -> AgentReply:
-        self._recorder.add_turn("user", user_text)
-        return await self._run(await self._model.send_text(user_text))
-
-    async def _run(self, reply: ModelReply) -> AgentReply:
-        for _ in range(MAX_TOOL_ROUNDS):
-            if not reply.function_calls:
-                break
-            results: list[tuple[FunctionCall, dict[str, Any]]] = []
-            for call in reply.function_calls:
-                outcome = self._executor.execute(call.name, call.arguments)
-                if outcome.closing_message is not None:
-                    return self._say(outcome.closing_message, ended=True)
-                results.append((call, outcome.payload))
-            reply = await self._model.send_tool_results(results)
-        return self._say(reply.text or FALLBACK_REPLY)
-
-    def _say(self, text: str, ended: bool = False) -> AgentReply:
-        self._recorder.add_turn("assistant", text)
-        return AgentReply(text=text, ended=ended)
+    async def summarize(self, record: ConversationRecord) -> Summary:
+        response = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=summary_input(record),
+            config=types.GenerateContentConfig(
+                system_instruction=SUMMARY_INSTRUCTION,
+                response_mime_type="application/json",
+                response_schema=SummaryDraft,
+                temperature=0.2,
+            ),
+        )
+        draft = response.parsed
+        if not isinstance(draft, SummaryDraft):
+            draft = SummaryDraft.model_validate_json(response.text or "")
+        return Summary(**draft.model_dump(), generated_by=self._model)

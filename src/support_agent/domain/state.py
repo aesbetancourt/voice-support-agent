@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import secrets
 from collections import Counter
+from collections.abc import Callable
 from typing import Any
 
-from support_agent.models import (
+from support_agent.domain.models import (
     Category,
     Order,
     OrderStatus,
@@ -23,8 +24,7 @@ from support_agent.models import (
     Ticket,
     ValidationEvent,
 )
-from support_agent.orders import OrderRepository
-from support_agent.validators import (
+from support_agent.domain.validators import (
     normalize_order_number,
     parse_category,
     parse_urgency,
@@ -40,13 +40,18 @@ _FIELD_PARSERS = {
 }
 
 
+# Finds an order by its canonical number. The domain needs only this function,
+# so it does not depend on any repository class or port.
+OrderLookup = Callable[[str], Order | None]
+
+
 class SessionClosedError(RuntimeError):
     """Raised when a tool is called after the conversation has closed."""
 
 
 class TicketSession:
-    def __init__(self, orders: OrderRepository, max_attempts: int = 3):
-        self._orders = orders
+    def __init__(self, find_order: OrderLookup, max_attempts: int = 3):
+        self._find_order = find_order
         self.max_attempts = max_attempts
         self.stage = Stage.COLLECTING
         self.ticket = Ticket()
@@ -66,7 +71,7 @@ class TicketSession:
         except ValueError as exc:
             return self._reject("order_number", order_number, str(exc))
 
-        order = self._orders.get(canonical)
+        order = self._find_order(canonical)
         if order is None:
             return self._reject(
                 "order_number",

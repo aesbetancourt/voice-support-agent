@@ -12,8 +12,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from support_agent.models import Category, Stage, Urgency
-from support_agent.state import SessionClosedError, TicketSession
+from support_agent.domain.models import Category, Stage, Urgency
+from support_agent.domain.state import SessionClosedError, TicketSession
 
 
 @dataclass(frozen=True)

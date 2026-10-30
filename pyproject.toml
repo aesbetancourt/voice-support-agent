@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-support-agent = "support_agent.cli:main"
+support-agent = "support_agent.adapters.inbound.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12.0"]

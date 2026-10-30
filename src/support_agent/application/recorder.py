@@ -1,6 +1,6 @@
-"""Records one conversation and saves it as JSON.
+"""Records one conversation and saves it through the ``ConversationStore`` port.
 
-Both channels use this class. It saves after each turn, so a crash or a dropped
+Every channel uses this class. It saves after each turn, so a crash or a dropped
 call keeps a partial record. ``finish`` adds the summary and saves the final record.
 """
 
@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Literal
 
-from support_agent.models import (
+from support_agent.application.ports import ConversationStore, Summarizer
+from support_agent.domain.models import (
     ConversationRecord,
     ConversationStatus,
     Stage,
@@ -19,9 +19,7 @@ from support_agent.models import (
     Turn,
     utc_now,
 )
-from support_agent.state import TicketSession
-from support_agent.storage import ConversationStore
-from support_agent.summary import Summarizer
+from support_agent.domain.state import TicketSession
 
 _STATUS_BY_STAGE = {
     Stage.COMPLETED: ConversationStatus.COMPLETED,
@@ -49,8 +47,8 @@ class ConversationRecorder:
         self._final: ConversationRecord | None = None
 
     @property
-    def path(self) -> Path:
-        return self._store.path_for(self.id)
+    def location(self) -> str:
+        return self._store.location(self.id)
 
     def add_turn(self, role: Literal["user", "assistant"], text: str) -> None:
         text = text.strip()

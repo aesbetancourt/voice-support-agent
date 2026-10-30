@@ -1,6 +1,6 @@
-"""Voice channel: browser (WebRTC) → Google STT → Gemini → Google TTS.
+"""Inbound adapter for voice: browser (WebRTC) → Google STT → Gemini → Google TTS.
 
-Run with ``support-agent voice`` or ``python -m support_agent.voice.bot``,
+Run with ``support-agent voice`` or ``python -m support_agent.adapters.inbound.voice``,
 then open http://localhost:7860. The Pipecat development runner serves the
 prebuilt browser client and the WebRTC signaling endpoint.
 Each browser connection gets its own pipeline, ticket and saved record.
@@ -40,13 +40,12 @@ from pipecat.transcriptions.language import Language
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 
+from support_agent.adapters.outbound.gemini import make_client
+from support_agent.application.prompts import GREETING_TRIGGER, system_prompt
+from support_agent.application.tools import TOOL_SPECS, ToolExecutor
+from support_agent.bootstrap import Conversation, make_summarizer, new_conversation
 from support_agent.config import ConfigError, Settings
-from support_agent.conversation import Conversation, new_conversation
-from support_agent.gemini import make_client
-from support_agent.models import Category
-from support_agent.prompts import GREETING_TRIGGER, system_prompt
-from support_agent.summary import GeminiSummarizer, SafeSummarizer
-from support_agent.tools import TOOL_SPECS, ToolExecutor
+from support_agent.domain.models import Category
 
 # Phrases that speech recognition must favor: the order prefix and the category names.
 _PHRASE_HINTS = [
@@ -120,7 +119,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     settings = Settings.from_env()
     try:
         stt, llm, tts = build_services(settings)
-        summarizer = SafeSummarizer(GeminiSummarizer(make_client(settings), settings.summary_model))
+        summarizer = make_summarizer(settings, make_client(settings))
     except (ConfigError, GoogleAuthError) as exc:
         logger.error(
             f"Cannot start the voice bot: {exc}. Set GOOGLE_CLOUD_PROJECT in .env and run "
@@ -186,7 +185,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         await runner.run()
     finally:
         record = await recorder.finish()
-        logger.info(f"Saved conversation {record.id} ({record.status.value}) to {recorder.path}")
+        logger.info(f"Saved conversation {record.id} ({record.status.value}): {recorder.location}")
 
 
 async def bot(runner_args: RunnerArguments):

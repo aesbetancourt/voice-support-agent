@@ -1,7 +1,7 @@
 import pytest
 
-from support_agent.models import Stage
-from support_agent.state import SessionClosedError, TicketSession
+from support_agent.domain.models import Stage
+from support_agent.domain.state import SessionClosedError, TicketSession
 
 
 def fill_ticket(session: TicketSession) -> None:
