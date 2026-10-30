@@ -81,10 +81,34 @@ class Ticket(BaseModel):
         return [name for name in REQUIRED_FIELDS if getattr(self, name) is None]
 
 
+class FrustrationAction(StrEnum):
+    """What the agent must do after a frustration reading."""
+
+    NONE = "none"
+    ACKNOWLEDGE = "acknowledge"
+    OFFER_HUMAN = "offer_human"
+
+
+class SentimentDraft(BaseModel):
+    """Fields that the sentiment classifier fills (structured output schema)."""
+
+    frustration: float = Field(
+        ge=0.0, le=1.0, description="0.0 calm, 0.6 clearly frustrated, 1.0 furious."
+    )
+    reason: str = Field(description="Why, in at most 12 words.")
+
+
+class SentimentReading(SentimentDraft):
+    """A frustration reading for one customer turn, with the action it caused."""
+
+    action: FrustrationAction = FrustrationAction.NONE
+
+
 class Turn(BaseModel):
     role: Literal["user", "assistant"]
     text: str
     at: datetime = Field(default_factory=utc_now)
+    sentiment: SentimentReading | None = None
 
 
 class ValidationEvent(BaseModel):

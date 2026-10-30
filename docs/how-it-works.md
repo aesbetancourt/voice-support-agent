@@ -141,6 +141,24 @@ The final goodbye with the ticket number is fixed text from the code, so Gemini 
 
 ---
 
+## 4b. Frustration detection
+
+**Example:** the customer says *"This is the third time I call. Nobody helps me."*
+
+1. The turn is saved, and a background task sends it to a small Gemini model.
+   The model answers `{frustration: 0.8, reason: "repeated unhelpful calls"}`.
+2. The domain rule (`FrustrationPolicy`) sees the first reading ≥ 0.7 and chooses **acknowledge**.
+3. The guidance goes into the conversation context as an instruction, not as customer speech.
+4. Ava's next reply starts with *"I completely understand your frustration…"*.
+5. If the next turn is also ≥ 0.7, the rule chooses **offer a human**. Ava offers a transfer once.
+   The customer decides, and only a "yes" calls `escalate_to_human`.
+
+**Pattern:** the same as the ticket. The model measures, and the code decides.
+The background task never delays a reply, so the guidance applies from the next turn.
+See [the feature document](features/frustration-detection.md) and [ADR-0007](adr/0007-frustration-detection.md).
+
+---
+
 ## 5. How one voice call flows through the code
 
 ```mermaid
@@ -177,7 +195,7 @@ Tomorrow, a `FirestoreConversationStore` can answer it, and the recorder does no
 |---|---|---|
 | **Domain** | Pure business rules | `domain/`: the ticket state machine, validators, data models |
 | **Application** | Use cases that coordinate the domain | `application/`: tools, agent loop, recorder, summary rules, prompts |
-| **Port** | An interface the application needs from the outside | `application/ports.py`: `OrderRepository`, `ConversationStore`, `ChatModel`, `Summarizer` |
+| **Port** | An interface the application needs from the outside | `application/ports.py`: `OrderRepository`, `ConversationStore`, `ChatModel`, `Summarizer`, `SentimentAnalyzer` |
 | **Inbound adapter** (driving) | Something that calls the application | `adapters/inbound/`: CLI, voice (Pipecat), simulations |
 | **Outbound adapter** (driven) | Something the application calls, through a port | `adapters/outbound/`: Gemini, JSON orders, JSON store |
 | **Composition root** | The one place that connects adapters to ports | `bootstrap.py` |
@@ -206,14 +224,17 @@ orbio-case/
 │   ├── domain/                  Pure rules. No AI, no audio, no files
 │   │   ├── models.py            Data shapes: Order, Ticket, ConversationRecord, Summary
 │   │   ├── validators.py        Cleans and checks values ("o r d one…" → ORD-104233)
-│   │   └── state.py             The rules: stages, validation, 3-failure escalation
+│   │   ├── state.py             The rules: stages, validation, 3-failure escalation
+│   │   └── frustration.py       When to acknowledge frustration or offer a human
 │   │
 │   ├── application/             Use cases. Talks to the outside only through ports
-│   │   ├── ports.py             The interfaces: OrderRepository, ConversationStore, ChatModel, Summarizer
+│   │   ├── ports.py             The interfaces: OrderRepository, ConversationStore, ChatModel,
+│   │   │                        Summarizer, SentimentAnalyzer
 │   │   ├── tools.py             The 6 tools Gemini can call + ToolExecutor
 │   │   ├── agent.py             TextAgent: the turn loop for text and simulations
 │   │   ├── recorder.py          Collects transcript + tool calls, saves after each turn
 │   │   ├── summary.py           What the summarizer receives + the rule-based fallback
+│   │   ├── sentiment.py         Rates each customer turn for frustration, in the background
 │   │   └── prompts.py           Instructions for Gemini (personality, rules)
 │   │
 │   ├── adapters/
@@ -222,14 +243,14 @@ orbio-case/
 │   │   │   ├── voice.py         The Pipecat pipeline
 │   │   │   └── simulate.py      Fake customers (Gemini plays them) to test the agent
 │   │   └── outbound/            How the app reaches the outside world
-│   │       ├── gemini.py        Vertex AI client + GeminiChatModel + GeminiSummarizer
+│   │       ├── gemini.py        Vertex AI client + chat, summary and sentiment adapters
 │   │       ├── json_orders.py   Reads the fake order database (data/orders.json)
 │   │       └── json_store.py    Writes conversation files safely
 │   │
 │   ├── bootstrap.py             Connects the adapters to the ports
 │   └── config.py                Reads settings from .env
 │
-├── tests/                       67 tests, no internet needed. Same folders as the code
+├── tests/                       90 tests, no internet needed. Same folders as the code
 │   ├── domain/  application/  adapters/
 │   └── test_architecture.py     Checks that every import points inward
 ├── data/orders.json             10 fake orders

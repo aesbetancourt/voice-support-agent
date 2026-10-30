@@ -4,8 +4,9 @@ from types import SimpleNamespace
 
 from google.genai import types
 
-from support_agent.adapters.outbound.gemini import GeminiChatModel
+from support_agent.adapters.outbound.gemini import GeminiChatModel, GeminiSentimentAnalyzer
 from support_agent.application.ports import FunctionCall
+from support_agent.domain.models import Turn
 
 
 class FakeModels:
@@ -14,7 +15,7 @@ class FakeModels:
         self.requests = []
 
     async def generate_content(self, model, contents, config):
-        self.requests.append(list(contents))
+        self.requests.append(contents if isinstance(contents, str) else list(contents))
         return self._responses.pop(0)
 
 
@@ -67,3 +68,31 @@ async def test_empty_candidate_returns_empty_reply():
     reply = await chat.send_text("hello")
     assert reply.text == ""
     assert reply.function_calls == []
+
+
+async def test_instruction_is_sent_before_the_customer_text():
+    fake = FakeModels([model_response(types.Part(text="I understand."))])
+    chat = GeminiChatModel(SimpleNamespace(aio=SimpleNamespace(models=fake)), "m", "p")
+    await chat.send_text("Where is my order?", instruction="Acknowledge the frustration.")
+    note, customer = fake.requests[0][0].parts
+    assert note.text.startswith("[Guidance for the agent, not said by the customer:")
+    assert customer.text == "Where is my order?"
+
+
+async def test_sentiment_analyzer_parses_structured_output():
+    response = types.GenerateContentResponse(
+        candidates=[
+            types.Candidate(
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part(text='{"frustration": 0.8, "reason": "third call"}')],
+                )
+            )
+        ]
+    )
+    fake = FakeModels([response])
+    analyzer = GeminiSentimentAnalyzer(SimpleNamespace(aio=SimpleNamespace(models=fake)), "lite")
+    recent = [Turn(role="assistant", text="How can I help?")]
+    draft = await analyzer.analyze("This is my third call!", recent)
+    assert (draft.frustration, draft.reason) == (0.8, "third call")
+    assert "assistant: How can I help?" in fake.requests[0]

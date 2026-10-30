@@ -2,9 +2,13 @@
 
 from types import SimpleNamespace
 
-from pipecat.frames.frames import EndWorkerFrame, TTSSpeakFrame
+from pipecat.frames.frames import EndWorkerFrame, LLMMessagesAppendFrame, TTSSpeakFrame
 
-from support_agent.adapters.inbound.voice import build_tools_schema, make_tool_handler
+from support_agent.adapters.inbound.voice import (
+    build_tools_schema,
+    make_guidance_sender,
+    make_tool_handler,
+)
 from support_agent.application.tools import TOOL_SPECS, ToolExecutor
 
 
@@ -49,3 +53,36 @@ async def test_closing_tool_speaks_fixed_message_and_ends_call(session):
     assert isinstance(speak, TTSSpeakFrame)
     assert "human agent" in speak.text
     assert isinstance(end, EndWorkerFrame)
+
+
+class FixedMonitor:
+    def __init__(self, guidance):
+        self.guidance = guidance
+
+    async def observe(self, turn_index, customer_text):
+        return self.guidance
+
+
+async def test_guidance_is_appended_to_context_without_running_the_llm():
+    queued = []
+
+    async def queue_frames(frames):
+        queued.extend(frames)
+
+    send = make_guidance_sender(FixedMonitor("Acknowledge it."), lambda: False, queue_frames)
+    await send(0, "This is the third time!")
+    (frame,) = queued
+    assert isinstance(frame, LLMMessagesAppendFrame)
+    assert frame.run_llm is False
+    assert frame.messages == [{"role": "developer", "content": "Acknowledge it."}]
+
+
+async def test_no_guidance_after_the_call_closed():
+    queued = []
+
+    async def queue_frames(frames):
+        queued.extend(frames)
+
+    send = make_guidance_sender(FixedMonitor("Acknowledge it."), lambda: True, queue_frames)
+    await send(0, "Bye!")
+    assert queued == []

@@ -10,9 +10,16 @@ from support_agent.adapters.outbound.json_store import JsonConversationStore
 from support_agent.application.agent import FALLBACK_REPLY, TextAgent
 from support_agent.application.ports import FunctionCall, ModelReply
 from support_agent.application.recorder import ConversationRecorder
+from support_agent.application.sentiment import SentimentMonitor
 from support_agent.application.summary import SafeSummarizer
 from support_agent.application.tools import ToolExecutor
-from support_agent.domain.models import ConversationStatus, Stage
+from support_agent.domain.models import (
+    ConversationStatus,
+    FrustrationAction,
+    Sentiment,
+    SentimentDraft,
+    Stage,
+)
 from support_agent.domain.state import TicketSession
 
 
@@ -22,13 +29,25 @@ class ScriptedModel:
     def __init__(self, replies: list[ModelReply]):
         self._replies = list(replies)
         self.tool_results: list[dict] = []
+        self.instructions: list[str | None] = []
 
-    async def send_text(self, text):
+    async def send_text(self, text, instruction=None):
+        self.instructions.append(instruction)
         return self._replies.pop(0)
 
     async def send_tool_results(self, results):
         self.tool_results.extend(payload for _, payload in results)
         return self._replies.pop(0)
+
+
+class ScriptedAnalyzer:
+    """Returns frustration scores in order."""
+
+    def __init__(self, scores):
+        self._scores = list(scores)
+
+    async def analyze(self, customer_text, recent_turns):
+        return SentimentDraft(frustration=self._scores.pop(0), reason="customer is upset")
 
 
 class FailingSummarizer:
@@ -42,13 +61,19 @@ def call(name, **arguments):
 
 @pytest.fixture
 def make_agent(orders: JsonOrderRepository, tmp_path):
-    def build(replies):
+    def build(replies, frustration_scores=None):
         session = TicketSession(orders.get)
         recorder = ConversationRecorder(
             "text", session, JsonConversationStore(tmp_path), SafeSummarizer(FailingSummarizer())
         )
         model = ScriptedModel(replies)
-        agent = TextAgent(model, ToolExecutor(session, recorder.add_tool_call), recorder)
+        monitor = (
+            SentimentMonitor(ScriptedAnalyzer(frustration_scores), recorder)
+            if frustration_scores is not None
+            else None
+        )
+        executor = ToolExecutor(session, recorder.add_tool_call)
+        agent = TextAgent(model, executor, recorder, sentiment=monitor)
         return agent, model, session, recorder
 
     return build
@@ -128,3 +153,27 @@ async def test_dropped_conversation_is_saved_as_abandoned(make_agent):
     record = await recorder.finish()
     assert record.status is ConversationStatus.ABANDONED
     assert record.summary.headline.startswith("Conversation ended before")
+
+
+async def test_frustration_guidance_applies_to_the_next_turn(make_agent):
+    agent, model, _, recorder = make_agent(
+        [ModelReply(text="How can I help?"), ModelReply(text="Sorry."), ModelReply(text="OK.")],
+        frustration_scores=[0.9, 0.1],
+    )
+    await agent.respond("This is the third time I call about this!")
+    await agent.respond("My order is ORD-104233.")
+    assert model.instructions[0] is None
+    assert "acknowledge" in model.instructions[1]
+    turns = recorder.build_record().transcript
+    assert turns[0].sentiment.action is FrustrationAction.ACKNOWLEDGE
+    assert turns[2].sentiment.action is FrustrationAction.NONE
+
+
+async def test_summary_fallback_uses_peak_frustration(make_agent):
+    agent, _, _, recorder = make_agent(
+        [ModelReply(text="Hi."), ModelReply(text="Sorry.")], frustration_scores=[0.6, 0.95]
+    )
+    await agent.respond("This is slow.")
+    await agent.respond("This is ridiculous, I want my money back now!")
+    record = await recorder.finish()
+    assert record.summary.customer_sentiment is Sentiment.ANGRY

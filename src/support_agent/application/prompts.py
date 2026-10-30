@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from support_agent.domain.models import Category
+from support_agent.domain.models import Category, FrustrationAction
 
 _CATEGORIES = ", ".join(c.value for c in Category)
 
@@ -52,6 +52,24 @@ This is a text chat. Use short, plain messages without markdown.
 GREETING_TRIGGER = (
     "The customer has just connected. Greet them as Ava from Orbio Store and ask how you can help."
 )
+
+
+FRUSTRATION_GUIDANCE = {
+    FrustrationAction.ACKNOWLEDGE: (
+        "The customer sounds frustrated ({reason}). In your next reply, briefly acknowledge "
+        "their frustration in one short sentence, then continue with the ticket."
+    ),
+    FrustrationAction.OFFER_HUMAN: (
+        "The customer has been frustrated for several turns ({reason}). In your next reply, "
+        "acknowledge it and offer to transfer them to a human agent. "
+        "If they accept, call escalate_to_human. If they decline, continue with the ticket."
+    ),
+}
+
+
+def frustration_guidance(action: FrustrationAction, reason: str) -> str | None:
+    template = FRUSTRATION_GUIDANCE.get(action)
+    return template.format(reason=reason.rstrip(".")) if template else None
 
 
 def system_prompt(channel: Literal["text", "voice"]) -> str:

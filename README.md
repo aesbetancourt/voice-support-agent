@@ -29,6 +29,22 @@ New to Pipecat or to this codebase? Read [docs/how-it-works.md](docs/how-it-work
 
 The mock order database is in [`data/orders.json`](data/orders.json) (10 orders with different statuses).
 
+## Frustration detection
+
+Each customer turn is rated for frustration from 0.0 to 1.0 by a small Gemini model
+(`gemini-3.5-flash-lite`). The rating runs in the background, so it never delays Ava's reply.
+A rule in the domain decides the reaction:
+
+| Readings | Ava's next reply |
+|---|---|
+| Below 0.7 | No change |
+| First reading ≥ 0.7 | Briefly acknowledges the frustration |
+| Two readings ≥ 0.7 in a row | Acknowledges it and offers a human agent (once per call) |
+
+Each reading is saved on its transcript turn (`sentiment`: score, reason, action), and the summary's
+`customer_sentiment` uses them. The full description is in [docs/features/frustration-detection.md](docs/features/frustration-detection.md),
+and [ADR-0007](docs/adr/0007-frustration-detection.md) records the options we compared.
+
 ## Setup
 
 ### Prerequisites
@@ -81,7 +97,7 @@ The key needs the *Vertex AI User* and *Cloud Speech Client* roles.
 |---|---|
 | `uv run support-agent voice` | Starts the voice server. Open <http://localhost:7860> and click **Connect** |
 | `uv run support-agent chat` | Text chat in the terminal. Type `/quit` to leave |
-| `uv run support-agent simulate` | Runs six simulated customers against the agent and prints PASS/FAIL |
+| `uv run support-agent simulate` | Runs seven simulated customers against the agent and prints PASS/FAIL |
 | `uv run pytest` | Runs the unit and conversation tests (no network needed) |
 
 Example orders to try: `ORD-104233` (delivered headphones), `ORD-208871` (shipped monitor),
@@ -108,7 +124,7 @@ flowchart LR
     subgraph HEX[Application core]
         direction TB
         APP[application/<br/>tools, agent, recorder, summary, prompts]
-        PORTS[[ports.py<br/>OrderRepository, ConversationStore,<br/>ChatModel, Summarizer]]
+        PORTS[[ports.py<br/>OrderRepository, ConversationStore,<br/>ChatModel, Summarizer, SentimentAnalyzer]]
         DOM[domain/<br/>TicketSession, validators, models]
         APP --> DOM
         APP --> PORTS
@@ -186,13 +202,15 @@ src/support_agent/
 ├── domain/                  # Pure business rules. Imports nothing from the project
 │   ├── models.py            # Pydantic models: Order, Ticket, ConversationRecord, Summary
 │   ├── validators.py        # Order-number normalizer, category/urgency parsers, description check
-│   └── state.py             # TicketSession: the state machine and validation rules
+│   ├── state.py             # TicketSession: the state machine and validation rules
+│   └── frustration.py       # FrustrationPolicy: readings → acknowledge / offer a human
 ├── application/             # Use cases. Depends on the domain and its own ports only
-│   ├── ports.py             # OrderRepository, ConversationStore, ChatModel, Summarizer
+│   ├── ports.py             # OrderRepository, ConversationStore, ChatModel, Summarizer, SentimentAnalyzer
 │   ├── tools.py             # Tool specs (SDK-neutral) and ToolExecutor
 │   ├── agent.py             # TextAgent: the turn loop for text and simulations
 │   ├── recorder.py          # Transcript, tool calls, saves after each turn, final summary
 │   ├── summary.py           # Summary input, SafeSummarizer, rule-based fallback
+│   ├── sentiment.py         # SentimentMonitor: rates each customer turn in the background
 │   └── prompts.py           # System prompt, with voice and text style variants
 ├── adapters/
 │   ├── inbound/             # Driving adapters: how customers and operators reach the app
@@ -219,7 +237,8 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 [0003 cascaded pipeline](docs/adr/0003-cascaded-voice-pipeline.md),
 [0004 Pipecat in one process](docs/adr/0004-pipecat-single-process-webrtc.md),
 [0005 hexagonal architecture](docs/adr/0005-hexagonal-architecture.md),
-[0006 no Pipecat Flows](docs/adr/0006-own-state-machine-not-pipecat-flows.md).
+[0006 no Pipecat Flows](docs/adr/0006-own-state-machine-not-pipecat-flows.md),
+[0007 frustration detection](docs/adr/0007-frustration-detection.md).
 
 | Decision | Reason |
 |---|---|
@@ -250,19 +269,20 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 | Tool called after the conversation closed | Refused |
 | Gemini API errors (text channel, summaries) | Retried 3 times with backoff (`google-genai` retry options); then the chat stops and saves the record. In voice, Pipecat's Google services handle errors |
 | Summary call fails | Rule-based fallback summary |
+| Sentiment call fails or takes more than 5 s | The turn has no reading; the conversation continues normally |
 | Missing project or expired credentials | Clear message with the `gcloud` command to run |
 | Browser disconnects | Pipeline stops; the record is saved as `abandoned` with a summary |
 
 ## Testing
 
-- **`uv run pytest`** runs 67 tests in under a second, with no network. The folders mirror the layers:
-  - `tests/domain/`: validators and every state-machine rule.
-  - `tests/application/`: the tool executor, and full conversations through the agent loop with a scripted `ChatModel`.
-  - `tests/adapters/`: Gemini response parsing with a fake client, and the voice tool handler.
+- **`uv run pytest`** runs 90 tests in under a second, with no network. The folders mirror the layers:
+  - `tests/domain/`: validators, every state-machine rule, and the frustration policy.
+  - `tests/application/`: the tool executor, the sentiment monitor (including failures and timeouts), and full conversations through the agent loop with a scripted `ChatModel`.
+  - `tests/adapters/`: Gemini response parsing with a fake client, the voice tool handler, and the voice guidance sender.
   - `tests/test_architecture.py`: one check per file that the layer imports only inward.
-- **`uv run support-agent simulate`** runs Gemini as six customer personas against the real agent:
+- **`uv run support-agent simulate`** runs Gemini as seven customer personas against the real agent:
   cooperative, wrong order number first, correction during read-back, rambling, demands a human,
-  and never gives a valid order number. Each persona has an expected outcome, and the command
+  growing frustration (must be offered a human without asking), and never gives a valid order number. Each persona has an expected outcome, and the command
   exits with code 1 if one fails. Use `--persona <name>` to run one.
 
 ## Potential improvements
@@ -270,6 +290,7 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 | Area | Improvement |
 |---|---|
 | Speech | Use word confidence from Google STT to ask for a repeat before extraction. Try the Chirp 3 STT model. Add a custom phrase set with all valid order prefixes |
+| Sentiment | Add acoustic signals (tone, volume, speech rate) to the text-based frustration score. Tune the thresholds on real calls |
 | Latency | Measure time-to-first-audio per stage with Pipecat metrics. Try Gemini Live (speech-to-speech) on Vertex AI for lower latency, and compare extraction accuracy |
 | Identity | Verify the customer (email or postcode) against the order before sharing order details |
 | Conversation | Handle silence with a user-idle timeout. Support several problems in one call. Support more languages |

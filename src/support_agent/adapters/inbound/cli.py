@@ -13,7 +13,12 @@ from loguru import logger
 
 from support_agent.adapters.inbound.simulate import PERSONAS, run_persona
 from support_agent.adapters.outbound.gemini import make_client
-from support_agent.bootstrap import make_summarizer, make_text_agent, new_conversation
+from support_agent.bootstrap import (
+    make_sentiment_analyzer,
+    make_summarizer,
+    make_text_agent,
+    new_conversation,
+)
 from support_agent.config import ConfigError, Settings
 from support_agent.domain.models import ConversationRecord
 
@@ -25,7 +30,12 @@ _TECHNICAL_ERROR = "Sorry, I have a technical problem and must stop. Your conver
 
 async def run_chat(settings: Settings) -> None:
     client = make_client(settings)
-    conversation = new_conversation(settings, "text", make_summarizer(settings, client))
+    conversation = new_conversation(
+        settings,
+        "text",
+        make_summarizer(settings, client),
+        make_sentiment_analyzer(settings, client),
+    )
     agent = make_text_agent(settings, client, conversation)
     print("Orbio Store support chat. Type /quit to leave.\n")
     # Config, auth and model errors show up here, before anything is saved.

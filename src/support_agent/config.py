@@ -21,6 +21,7 @@ class Settings:
     location: str
     model: str
     summary_model: str
+    sentiment_model: str
     tts_voice: str
     stt_location: str
     stt_phrase_hints: bool
@@ -37,6 +38,7 @@ class Settings:
             location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
             model=model,
             summary_model=os.getenv("GEMINI_SUMMARY_MODEL", model),
+            sentiment_model=os.getenv("GEMINI_SENTIMENT_MODEL", "gemini-3.5-flash-lite"),
             tts_voice=os.getenv("GOOGLE_TTS_VOICE", "en-US-Chirp3-HD-Charon"),
             stt_location=os.getenv("GOOGLE_STT_LOCATION", "global"),
             stt_phrase_hints=os.getenv("GOOGLE_STT_PHRASE_HINTS", "true").lower() != "false",

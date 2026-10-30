@@ -14,6 +14,7 @@ from support_agent.application.ports import ConversationStore, Summarizer
 from support_agent.domain.models import (
     ConversationRecord,
     ConversationStatus,
+    SentimentReading,
     Stage,
     ToolCallEvent,
     Turn,
@@ -50,16 +51,26 @@ class ConversationRecorder:
     def location(self) -> str:
         return self._store.location(self.id)
 
-    def add_turn(self, role: Literal["user", "assistant"], text: str) -> None:
+    def add_turn(self, role: Literal["user", "assistant"], text: str) -> int | None:
+        """Add a turn and save. Returns the turn's index, or None if it was skipped."""
         text = text.strip()
         if not text:
-            return
+            return None
         # The voice channel can report the same closing message twice; keep one copy.
         last = self._transcript[-1] if self._transcript else None
         if last is not None and last.role == role and last.text == text:
-            return
+            return None
         self._transcript.append(Turn(role=role, text=text))
         self._store.save(self.build_record())
+        return len(self._transcript) - 1
+
+    def turns_before(self, index: int, limit: int) -> list[Turn]:
+        return list(self._transcript[max(0, index - limit) : index])
+
+    def attach_sentiment(self, index: int, reading: SentimentReading) -> None:
+        self._transcript[index].sentiment = reading
+        if self._final is None:
+            self._store.save(self.build_record())
 
     def add_tool_call(self, name: str, arguments: dict[str, Any], result: dict[str, Any]) -> None:
         self._tool_calls.append(ToolCallEvent(name=name, arguments=arguments, result=result))
@@ -81,7 +92,7 @@ class ConversationRecorder:
             ticket=session.ticket.model_copy(),
             order=session.order,
             escalation_reason=session.escalation_reason,
-            transcript=list(self._transcript),
+            transcript=[turn.model_copy() for turn in self._transcript],
             tool_calls=list(self._tool_calls),
             validation_events=list(session.validation_events),
         )

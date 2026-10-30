@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from support_agent.domain.models import ConversationRecord, Order, Summary
+from support_agent.domain.models import ConversationRecord, Order, SentimentDraft, Summary, Turn
 
 
 class OrderRepository(Protocol):
@@ -34,6 +34,12 @@ class Summarizer(Protocol):
     async def summarize(self, record: ConversationRecord) -> Summary: ...
 
 
+class SentimentAnalyzer(Protocol):
+    """Rates how frustrated the customer is in their latest message."""
+
+    async def analyze(self, customer_text: str, recent_turns: list[Turn]) -> SentimentDraft: ...
+
+
 @dataclass(frozen=True)
 class FunctionCall:
     """A tool call requested by the chat model."""
@@ -54,7 +60,9 @@ class ModelReply:
 class ChatModel(Protocol):
     """A tool-calling chat model that keeps its own conversation history."""
 
-    async def send_text(self, text: str) -> ModelReply: ...
+    async def send_text(self, text: str, instruction: str | None = None) -> ModelReply:
+        """Send customer text. ``instruction`` is guidance for the model, not customer speech."""
+        ...
 
     async def send_tool_results(
         self, results: list[tuple[FunctionCall, dict[str, Any]]]

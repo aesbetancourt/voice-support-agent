@@ -10,7 +10,8 @@ import json
 from loguru import logger
 
 from support_agent.application.ports import Summarizer
-from support_agent.domain.models import ConversationRecord, Sentiment, Stage, Summary
+from support_agent.domain.frustration import sentiment_from_peak
+from support_agent.domain.models import ConversationRecord, Stage, Summary, Turn
 
 SUMMARY_INSTRUCTION = """\
 You summarize customer support conversations for the support team.
@@ -64,18 +65,29 @@ def fallback_summary(record: ConversationRecord) -> Summary:
     return Summary(
         headline=headline,
         key_points=key_points or ["No ticket details were collected."],
-        customer_sentiment=Sentiment.NEUTRAL,
+        customer_sentiment=sentiment_from_peak(peak_frustration(record)),
         next_action=next_action,
         generated_by="fallback",
     )
 
 
+def peak_frustration(record: ConversationRecord) -> float | None:
+    readings = [turn.sentiment.frustration for turn in record.transcript if turn.sentiment]
+    return max(readings) if readings else None
+
+
 def summary_input(record: ConversationRecord) -> str:
     """The text an LLM summarizer receives for one conversation."""
-    transcript = "\n".join(f"{turn.role}: {turn.text}" for turn in record.transcript)
+    transcript = "\n".join(_transcript_line(turn) for turn in record.transcript)
     ticket = json.dumps(record.ticket.model_dump(mode="json"), indent=2)
     return (
         f"Final stage: {record.stage.value}\n"
         f"Escalation reason: {record.escalation_reason or 'none'}\n\n"
         f"Ticket:\n{ticket}\n\nTranscript:\n{transcript}"
     )
+
+
+def _transcript_line(turn: Turn) -> str:
+    if turn.sentiment is None:
+        return f"{turn.role}: {turn.text}"
+    return f"{turn.role} (frustration {turn.sentiment.frustration:.1f}): {turn.text}"

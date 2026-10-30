@@ -8,7 +8,8 @@ Each browser connection gets its own pipeline, ticket and saved record.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import asyncio
+from collections.abc import Awaitable, Callable
 
 from google.auth.exceptions import GoogleAuthError
 from loguru import logger
@@ -17,7 +18,9 @@ from pipecat.adapters.llm.schemas.tools_schema import ToolsSchema
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.frames.frames import (
     EndWorkerFrame,
+    Frame,
     FunctionCallResultProperties,
+    LLMMessagesAppendFrame,
     LLMRunFrame,
     TTSSpeakFrame,
 )
@@ -42,8 +45,14 @@ from pipecat.workers.runner import WorkerRunner
 
 from support_agent.adapters.outbound.gemini import make_client
 from support_agent.application.prompts import GREETING_TRIGGER, system_prompt
+from support_agent.application.sentiment import ANALYSIS_TIMEOUT_SECS, SentimentMonitor
 from support_agent.application.tools import TOOL_SPECS, ToolExecutor
-from support_agent.bootstrap import Conversation, make_summarizer, new_conversation
+from support_agent.bootstrap import (
+    Conversation,
+    make_sentiment_analyzer,
+    make_summarizer,
+    new_conversation,
+)
 from support_agent.config import ConfigError, Settings
 from support_agent.domain.models import Category
 
@@ -91,6 +100,27 @@ def make_tool_handler(executor: ToolExecutor, on_closing: Callable[[str], None] 
     return handle
 
 
+def make_guidance_sender(
+    monitor: SentimentMonitor,
+    is_closed: Callable[[], bool],
+    queue_frames: Callable[[list[Frame]], Awaitable[None]],
+) -> Callable[[int | None, str], Awaitable[None]]:
+    """Return a task body: rate one customer turn, then add any guidance to the LLM context."""
+
+    async def send(turn_index: int | None, customer_text: str) -> None:
+        guidance = await monitor.observe(turn_index, customer_text)
+        if guidance is None or is_closed():
+            return
+        # run_llm=False: the guidance shapes the next reply; it does not trigger a new one.
+        message = {"role": "developer", "content": guidance}
+        try:
+            await queue_frames([LLMMessagesAppendFrame(messages=[message], run_llm=False)])
+        except Exception as exc:  # noqa: BLE001 - the call can end while the task runs
+            logger.debug(f"Frustration guidance not sent: {exc!r}")
+
+    return send
+
+
 def build_services(settings: Settings):
     project_id = settings.require_project()
     adaptation = (
@@ -119,7 +149,9 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     settings = Settings.from_env()
     try:
         stt, llm, tts = build_services(settings)
-        summarizer = make_summarizer(settings, make_client(settings))
+        client = make_client(settings)
+        summarizer = make_summarizer(settings, client)
+        sentiment_analyzer = make_sentiment_analyzer(settings, client)
     except (ConfigError, GoogleAuthError) as exc:
         logger.error(
             f"Cannot start the voice bot: {exc}. Set GOOGLE_CLOUD_PROJECT in .env and run "
@@ -127,7 +159,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         )
         return
 
-    conversation: Conversation = new_conversation(settings, "voice", summarizer)
+    conversation: Conversation = new_conversation(settings, "voice", summarizer, sentiment_analyzer)
     recorder = conversation.recorder
     logger.info(f"Starting voice conversation {recorder.id}")
 
@@ -172,9 +204,23 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         logger.info(f"Client disconnected from conversation {recorder.id}")
         await runner.cancel()
 
+    # Frustration readings run in the background, so they never delay Ava's reply.
+    sentiment_tasks: set[asyncio.Task[None]] = set()
+    send_guidance = (
+        make_guidance_sender(
+            conversation.sentiment, lambda: conversation.session.is_closed, worker.queue_frames
+        )
+        if conversation.sentiment
+        else None
+    )
+
     @user_aggregator.event_handler("on_user_turn_stopped")
     async def on_user_turn_stopped(aggregator, strategy, message: UserTurnStoppedMessage):
-        recorder.add_turn("user", message.content)
+        turn_index = recorder.add_turn("user", message.content or "")
+        if send_guidance is not None and message.content:
+            task = asyncio.create_task(send_guidance(turn_index, message.content))
+            sentiment_tasks.add(task)
+            task.add_done_callback(sentiment_tasks.discard)
 
     @assistant_aggregator.event_handler("on_assistant_turn_stopped")
     async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
@@ -184,6 +230,9 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     try:
         await runner.run()
     finally:
+        # Let readings in progress finish, so the saved record includes them.
+        if sentiment_tasks:
+            await asyncio.wait(set(sentiment_tasks), timeout=ANALYSIS_TIMEOUT_SECS)
         record = await recorder.finish()
         logger.info(f"Saved conversation {record.id} ({record.status.value}): {recorder.location}")
 

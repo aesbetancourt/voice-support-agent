@@ -1,4 +1,4 @@
-"""Gemini on Vertex AI adapters for the ``ChatModel`` and ``Summarizer`` ports."""
+"""Gemini on Vertex AI adapters for the ChatModel, Summarizer and SentimentAnalyzer ports."""
 
 from __future__ import annotations
 
@@ -8,10 +8,17 @@ from google import genai
 from google.genai import types
 
 from support_agent.application.ports import FunctionCall, ModelReply
+from support_agent.application.sentiment import SENTIMENT_INSTRUCTION
 from support_agent.application.summary import SUMMARY_INSTRUCTION, summary_input
 from support_agent.application.tools import TOOL_SPECS
 from support_agent.config import Settings
-from support_agent.domain.models import ConversationRecord, Summary, SummaryDraft
+from support_agent.domain.models import (
+    ConversationRecord,
+    SentimentDraft,
+    Summary,
+    SummaryDraft,
+    Turn,
+)
 
 # Retry rate limits and server errors with exponential backoff.
 _RETRY = types.HttpRetryOptions(attempts=3, initial_delay=1.0, max_delay=8.0)
@@ -54,8 +61,13 @@ class GeminiChatModel:
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
 
-    async def send_text(self, text: str) -> ModelReply:
-        self._history.append(types.Content(role="user", parts=[types.Part.from_text(text=text)]))
+    async def send_text(self, text: str, instruction: str | None = None) -> ModelReply:
+        parts = [types.Part.from_text(text=text)]
+        if instruction:
+            # Mark the guidance clearly, so the model does not read it as customer speech.
+            note = f"[Guidance for the agent, not said by the customer: {instruction}]"
+            parts.insert(0, types.Part.from_text(text=note))
+        self._history.append(types.Content(role="user", parts=parts))
         return await self._generate()
 
     async def send_tool_results(
@@ -117,3 +129,29 @@ class GeminiSummarizer:
         if not isinstance(draft, SummaryDraft):
             draft = SummaryDraft.model_validate_json(response.text or "")
         return Summary(**draft.model_dump(), generated_by=self._model)
+
+
+class GeminiSentimentAnalyzer:
+    """``SentimentAnalyzer`` port with a small, fast Gemini model and structured output."""
+
+    def __init__(self, client: genai.Client, model: str):
+        self._client = client
+        self._model = model
+
+    async def analyze(self, customer_text: str, recent_turns: list[Turn]) -> SentimentDraft:
+        context = "\n".join(f"{turn.role}: {turn.text}" for turn in recent_turns) or "(none)"
+        prompt = f"Recent conversation:\n{context}\n\nLatest customer message:\n{customer_text}"
+        response = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SENTIMENT_INSTRUCTION,
+                response_mime_type="application/json",
+                response_schema=SentimentDraft,
+                temperature=0.0,
+            ),
+        )
+        draft = response.parsed
+        if not isinstance(draft, SentimentDraft):
+            draft = SentimentDraft.model_validate_json(response.text or "")
+        return draft

@@ -11,7 +11,12 @@ from dataclasses import dataclass
 from google import genai
 from google.genai import types
 
-from support_agent.bootstrap import make_summarizer, make_text_agent, new_conversation
+from support_agent.bootstrap import (
+    make_sentiment_analyzer,
+    make_summarizer,
+    make_text_agent,
+    new_conversation,
+)
 from support_agent.config import Settings
 from support_agent.domain.models import ConversationRecord, ConversationStatus
 
@@ -63,6 +68,13 @@ PERSONAS: list[Persona] = [
         ConversationStatus.ESCALATED,
     ),
     Persona(
+        "growing_frustration",
+        "Your monitor from order ORD-208871 is six days late and this is your third contact. "
+        "You answer questions, but each answer is more impatient and angry than the last. "
+        "You never ask for a human yourself. If the agent offers a human agent, accept it.",
+        ConversationStatus.ESCALATED,
+    ),
+    Persona(
         "never_valid_order",
         "You want help with a broken speaker but you do not have a valid order number. "
         "Each time you are asked, give a different made-up number like 12345 or ORD-99.",
@@ -108,7 +120,12 @@ class SimulatedCustomer:
 async def run_persona(
     settings: Settings, client: genai.Client, persona: Persona, max_turns: int
 ) -> SimulationResult:
-    conversation = new_conversation(settings, "text", make_summarizer(settings, client))
+    conversation = new_conversation(
+        settings,
+        "text",
+        make_summarizer(settings, client),
+        make_sentiment_analyzer(settings, client),
+    )
     agent = make_text_agent(settings, client, conversation)
     customer = SimulatedCustomer(client, settings.model, persona)
 
