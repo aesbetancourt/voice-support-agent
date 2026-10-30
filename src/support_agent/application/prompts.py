@@ -107,6 +107,11 @@ def frustration_guidance(action: FrustrationAction, reason: str) -> str | None:
     return template.format(reason=reason.rstrip(".")) if template else None
 
 
+def agent_note(instruction: str) -> str:
+    """Mark an instruction, so the model does not read it as customer speech."""
+    return f"[Guidance for the agent, not said by the customer: {instruction}]"
+
+
 def language_switch_note(language: Language) -> str:
     name = LANGUAGE_NAMES[language]
     return f"The customer now speaks {name}. From now on, speak only {name}."

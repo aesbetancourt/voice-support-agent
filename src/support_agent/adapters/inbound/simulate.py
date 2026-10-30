@@ -98,7 +98,7 @@ class SimulationResult:
 class SimulatedCustomer:
     def __init__(
         self, client: genai.Client, model: str, persona: Persona, language: Language = Language.EN
-    ):
+    ) -> None:
         self._client = client
         self._model = model
         language_rule = f"Write only in {LANGUAGE_NAMES[language]}."
@@ -143,5 +143,6 @@ async def run_persona(
             reply = await agent.respond(customer_text)
             turns += 1
     finally:
+        await agent.wait_for_reading()
         record = await conversation.recorder.finish()
     return SimulationResult(persona=persona, record=record, turns=turns)

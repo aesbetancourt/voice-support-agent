@@ -13,6 +13,7 @@ from loguru import logger
 
 from support_agent.adapters.inbound.simulate import PERSONAS, run_persona
 from support_agent.adapters.outbound.gemini import make_client
+from support_agent.application.messages import technical_error_message
 from support_agent.bootstrap import (
     make_sentiment_analyzer,
     make_summarizer,
@@ -23,10 +24,10 @@ from support_agent.config import ConfigError, Settings
 from support_agent.domain.models import ConversationRecord, Language
 from support_agent.domain.validators import parse_language
 
+# A long complaint fits easily; a pasted document does not reach the model.
 MAX_INPUT_CHARS = 2000
 VOICE_MODULE = "support_agent.adapters.inbound.voice"
 _QUIT_COMMANDS = {"/quit", "/exit"}
-_TECHNICAL_ERROR = "Sorry, I have a technical problem and must stop. Your conversation is saved."
 
 
 async def run_chat(settings: Settings) -> None:
@@ -56,8 +57,9 @@ async def run_chat(settings: Settings) -> None:
             print(f"\nagent> {reply.text}\n")
     except genai_errors.APIError as exc:
         logger.error(f"Gemini API error: {exc}")
-        print(f"\nagent> {_TECHNICAL_ERROR}\n")
+        print(f"\nagent> {technical_error_message(conversation.recorder.language)}\n")
     finally:
+        await agent.wait_for_reading()
         record = await conversation.recorder.finish()
         _print_record(record, conversation.recorder.location)
 
@@ -117,6 +119,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     simulate = commands.add_parser("simulate", help="Run simulated customers against the agent.")
     simulate.add_argument("--persona", default="all", help="Persona name, or 'all'.")
+    # A long enough limit for every persona; it stops a simulation that never ends.
     simulate.add_argument("--max-turns", type=int, default=16)
     for command in (chat, voice, simulate):
         command.add_argument(

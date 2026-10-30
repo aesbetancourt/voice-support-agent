@@ -41,11 +41,32 @@ _CLOSING_MESSAGES = {
 }
 
 
+_RETRY_MESSAGES = {
+    Language.EN: "Sorry, I did not catch that. Could you say it again?",
+    Language.ES: "Disculpe, no le entendí. ¿Podría repetirlo?",
+}
+
+_TECHNICAL_ERROR_MESSAGES = {
+    Language.EN: "Sorry, I have a technical problem and must stop. Your conversation is saved.",
+    Language.ES: (
+        "Disculpe, tengo un problema técnico y debo terminar. Su conversación está guardada."
+    ),
+}
+
+
+def retry_message(language: Language) -> str:
+    return _RETRY_MESSAGES[language]
+
+
+def technical_error_message(language: Language) -> str:
+    return _TECHNICAL_ERROR_MESSAGES[language]
+
+
 def closing_message(language: Language, stage: Stage, ticket_id: str | None) -> str | None:
     template = _CLOSING_MESSAGES[language].get(stage)
     return template.format(ticket_id=ticket_id or "") if template else None
 
 
 def closing_messages(language: Language) -> dict[Stage, str]:
-    """All closing templates for one language (used by tests)."""
+    """All closing templates for one language."""
     return dict(_CLOSING_MESSAGES[language])

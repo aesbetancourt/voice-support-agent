@@ -34,6 +34,7 @@ _ORDER_FILLER_WORDS = {
 }  # fmt: skip
 _REPEAT_WORDS = {"double": 2, "triple": 3, "doble": 2}
 
+# Shorter than a short sentence is not a usable description; longer is not a summary.
 DESCRIPTION_MIN_LENGTH = 10
 DESCRIPTION_MAX_LENGTH = 1000
 

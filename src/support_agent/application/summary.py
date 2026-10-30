@@ -25,7 +25,7 @@ because the support team works in English.
 class SafeSummarizer:
     """Uses the primary summarizer, and the fallback summary if it fails."""
 
-    def __init__(self, primary: Summarizer | None):
+    def __init__(self, primary: Summarizer | None) -> None:
         self._primary = primary
 
     async def summarize(self, record: ConversationRecord) -> Summary:

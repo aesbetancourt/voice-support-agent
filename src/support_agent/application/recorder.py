@@ -38,7 +38,7 @@ class ConversationRecorder:
         store: ConversationStore,
         summarizer: Summarizer,
         language: Language = Language.EN,
-    ):
+    ) -> None:
         self.id = f"{utc_now():%Y%m%dT%H%M%S}-{uuid.uuid4().hex[:8]}"
         self.channel = channel
         self.language = language

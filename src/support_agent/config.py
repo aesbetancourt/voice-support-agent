@@ -13,6 +13,9 @@ from support_agent.domain.validators import parse_language
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+# Low enough for consistent tool calls, high enough for natural replies. Voice and text share it.
+AGENT_TEMPERATURE = 0.4
+
 
 class ConfigError(RuntimeError):
     """Raised when a required setting is missing."""

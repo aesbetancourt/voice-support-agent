@@ -11,6 +11,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
+from support_agent.application.messages import retry_message
 from support_agent.application.ports import ChatModel, FunctionCall, ModelReply
 from support_agent.application.prompts import greeting_trigger
 from support_agent.application.recorder import ConversationRecorder
@@ -19,7 +20,6 @@ from support_agent.application.tools import ToolExecutor
 
 # Stops a model that keeps calling tools without ever answering the customer.
 MAX_TOOL_ROUNDS = 6
-FALLBACK_REPLY = "Sorry, I did not catch that. Could you say it again?"
 
 
 @dataclass(frozen=True)
@@ -35,12 +35,12 @@ class TextAgent:
         executor: ToolExecutor,
         recorder: ConversationRecorder,
         sentiment: SentimentMonitor | None = None,
-    ):
+    ) -> None:
         self._model = model
         self._executor = executor
         self._recorder = recorder
         self._sentiment = sentiment
-        self._pending_guidance: str | None = None
+        self._reading: asyncio.Task[str | None] | None = None
 
     async def greet(self) -> AgentReply:
         # The greeting trigger is an instruction, not customer speech, so it is not recorded.
@@ -48,21 +48,19 @@ class TextAgent:
         return await self._run(await self._model.send_text(trigger))
 
     async def respond(self, user_text: str) -> AgentReply:
+        # The previous turn's reading had the customer's whole typing time to finish.
+        guidance = await self.wait_for_reading()
         turn_index = self._recorder.add_turn("user", user_text)
-        # The sentiment reading runs in parallel with the reply, like in the voice channel,
-        # so its guidance applies from the next turn.
-        sentiment = (
-            asyncio.create_task(self._sentiment.observe(turn_index, user_text))
-            if self._sentiment
-            else None
-        )
-        guidance, self._pending_guidance = self._pending_guidance, None
-        try:
-            reply = await self._run(await self._model.send_text(user_text, instruction=guidance))
-        finally:
-            if sentiment is not None:
-                self._pending_guidance = await sentiment
-        return reply
+        # This turn's reading runs in the background, like in the voice channel,
+        # so it never delays the reply. Its guidance applies from the next turn.
+        if self._sentiment is not None:
+            self._reading = asyncio.create_task(self._sentiment.observe(turn_index, user_text))
+        return await self._run(await self._model.send_text(user_text, instruction=guidance))
+
+    async def wait_for_reading(self) -> str | None:
+        """Wait for the last frustration reading; call it before the record is finished."""
+        reading, self._reading = self._reading, None
+        return await reading if reading is not None else None
 
     async def _run(self, reply: ModelReply) -> AgentReply:
         for _ in range(MAX_TOOL_ROUNDS):
@@ -75,7 +73,7 @@ class TextAgent:
                     return self._say(outcome.closing_message, ended=True)
                 results.append((call, outcome.payload))
             reply = await self._model.send_tool_results(results)
-        return self._say(reply.text or FALLBACK_REPLY)
+        return self._say(reply.text or retry_message(self._executor.language))
 
     def _say(self, text: str, ended: bool = False) -> AgentReply:
         self._recorder.add_turn("assistant", text)

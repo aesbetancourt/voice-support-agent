@@ -36,8 +36,9 @@ def test_policy_actions(scores, expected):
     [
         (None, Sentiment.NEUTRAL),
         (0.2, Sentiment.NEUTRAL),
-        (0.5, Sentiment.FRUSTRATED),
-        (0.85, Sentiment.ANGRY),
+        (0.5, Sentiment.NEUTRAL),
+        (0.6, Sentiment.FRUSTRATED),
+        (0.8, Sentiment.ANGRY),
     ],
 )
 def test_sentiment_from_peak(peak, expected):

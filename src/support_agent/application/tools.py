@@ -33,8 +33,8 @@ TOOL_SPECS: list[ToolSpec] = [
         name="lookup_order",
         description=(
             "Find the customer's order and attach it to the ticket. Call it as soon as the "
-            "customer gives an order number, also when they correct it. Pass the number "
-            "exactly as the customer said it; the system normalizes it."
+            "customer gives an order number, also when they correct it. Pass only the order "
+            "number, as the customer said it, without other words; the system normalizes it."
         ),
         properties={
             "order_number": {
@@ -108,11 +108,8 @@ TOOL_SPECS: list[ToolSpec] = [
 @dataclass(frozen=True)
 class ToolOutcome:
     payload: dict[str, Any]
+    # Set only on the call that closed the conversation, so the channel says it once.
     closing_message: str | None = None
-
-    @property
-    def ends_conversation(self) -> bool:
-        return self.closing_message is not None
 
 
 ToolCallListener = Callable[[str, dict[str, Any], dict[str, Any]], None]
@@ -124,13 +121,14 @@ class ToolExecutor:
         session: TicketSession,
         on_call: ToolCallListener | None = None,
         language: Language = Language.EN,
-    ):
+    ) -> None:
         self.session = session
         self.language = language
         self._on_call = on_call
 
     def execute(self, name: str, arguments: dict[str, Any] | None) -> ToolOutcome:
         args = dict(arguments or {})
+        was_open = not self.session.is_closed
         try:
             payload = self._dispatch(name, args)
         except SessionClosedError as exc:
@@ -142,7 +140,8 @@ class ToolExecutor:
 
         if self._on_call is not None:
             self._on_call(name, args, payload)
-        return ToolOutcome(payload=payload, closing_message=self._closing_message())
+        closing = self._closing_message() if was_open and self.session.is_closed else None
+        return ToolOutcome(payload=payload, closing_message=closing)
 
     def _dispatch(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         session = self.session

@@ -28,6 +28,7 @@ from support_agent.adapters.inbound.voice import (
     session_language,
     stt_languages,
 )
+from support_agent.application.prompts import agent_note
 from support_agent.application.tools import TOOL_SPECS, ToolExecutor
 from support_agent.domain.models import Language
 
@@ -94,7 +95,7 @@ async def test_guidance_is_appended_to_context_without_running_the_llm():
     (frame,) = queued
     assert isinstance(frame, LLMMessagesAppendFrame)
     assert frame.run_llm is False
-    assert frame.messages == [{"role": "developer", "content": "Acknowledge it."}]
+    assert frame.messages == [{"role": "developer", "content": agent_note("Acknowledge it.")}]
 
 
 async def test_no_guidance_after_the_call_closed():
@@ -200,7 +201,6 @@ async def run_switcher(frames):
         pushed.append(frame)
 
     switcher.push_frame = push_frame
-    switcher._check_started = lambda frame: True
     for frame in frames:
         await switcher.process_frame(frame, FrameDirection.DOWNSTREAM)
     return switcher, switches, pushed
@@ -238,7 +238,6 @@ async def test_thought_filter_cleans_streamed_llm_text():
         pushed.append(frame)
 
     tag_filter.push_frame = push_frame
-    tag_filter._check_started = lambda frame: True
     frames = [
         LLMFullResponseStartFrame(),
         LLMTextFrame("<thou"),

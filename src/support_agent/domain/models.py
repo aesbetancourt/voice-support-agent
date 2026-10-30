@@ -14,7 +14,7 @@ def utc_now() -> datetime:
 
 
 class Language(StrEnum):
-    """Language of one conversation. Fixed at the start (see ADR-0008)."""
+    """Language of a conversation. Voice calls can switch it (see ADR-0009)."""
 
     EN = "en"
     ES = "es"

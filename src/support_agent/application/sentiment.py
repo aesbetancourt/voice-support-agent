@@ -18,7 +18,9 @@ from support_agent.application.recorder import ConversationRecorder
 from support_agent.domain.frustration import FrustrationPolicy
 from support_agent.domain.models import SentimentReading
 
+# A reading takes about 1 s. After 5 s it is too late to shape the next reply.
 ANALYSIS_TIMEOUT_SECS = 5.0
+# Enough history to see repetition ("I already told you"), small enough to stay fast.
 CONTEXT_TURNS = 4
 
 SENTIMENT_INSTRUCTION = """\
@@ -39,7 +41,7 @@ class SentimentMonitor:
         recorder: ConversationRecorder,
         policy: FrustrationPolicy | None = None,
         timeout_secs: float = ANALYSIS_TIMEOUT_SECS,
-    ):
+    ) -> None:
         self._analyzer = analyzer
         self._recorder = recorder
         self._policy = policy or FrustrationPolicy()

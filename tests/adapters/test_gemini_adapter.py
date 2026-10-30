@@ -128,3 +128,19 @@ def test_thought_tags_are_removed_from_streamed_text(chunks, expected):
 def test_thought_text_before_a_tag_is_sent_at_once():
     stripper = ThoughtTagStripper()
     assert stripper.feed("Sure. <thou") == "Sure. "
+
+
+async def test_open_tool_calls_are_answered_before_new_customer_text():
+    # The agent loop can stop at MAX_TOOL_ROUNDS with calls still open.
+    open_call = types.Part(
+        function_call=types.FunctionCall(id="call-9", name="review_ticket", args={})
+    )
+    fake = FakeModels([model_response(open_call), model_response(types.Part(text="Sorry."))])
+    chat = GeminiChatModel(SimpleNamespace(aio=SimpleNamespace(models=fake)), "m", "prompt")
+    await chat.send_text("hello")
+    await chat.send_text("are you there?")
+    last_user_turn = fake.requests[1][-1]
+    response, text = last_user_turn.parts
+    assert response.function_response.id == "call-9"
+    assert response.function_response.response["ok"] is False
+    assert text.text == "are you there?"

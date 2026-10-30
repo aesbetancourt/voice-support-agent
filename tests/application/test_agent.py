@@ -1,5 +1,6 @@
 """End-to-end conversations through the agent loop, with a scripted ChatModel (no network)."""
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -7,7 +8,8 @@ import pytest
 
 from support_agent.adapters.outbound.json_orders import JsonOrderRepository
 from support_agent.adapters.outbound.json_store import JsonConversationStore
-from support_agent.application.agent import FALLBACK_REPLY, TextAgent
+from support_agent.application.agent import TextAgent
+from support_agent.application.messages import retry_message
 from support_agent.application.ports import FunctionCall, ModelReply
 from support_agent.application.recorder import ConversationRecorder
 from support_agent.application.sentiment import SentimentMonitor
@@ -136,7 +138,7 @@ async def test_model_cannot_finalize_without_review(make_agent):
 async def test_endless_tool_calls_fall_back_to_a_safe_reply(make_agent):
     agent, _, _, _ = make_agent([call("review_ticket") for _ in range(10)])
     reply = await agent.respond("hello")
-    assert reply.text == FALLBACK_REPLY
+    assert reply.text == retry_message(Language.EN)
 
 
 async def test_recorder_skips_duplicate_consecutive_turn(make_agent):
@@ -163,6 +165,7 @@ async def test_frustration_guidance_applies_to_the_next_turn(make_agent):
     )
     await agent.respond("This is the third time I call about this!")
     await agent.respond("My order is ORD-104233.")
+    await agent.wait_for_reading()
     assert model.instructions[0] is None
     assert "acknowledge" in model.instructions[1]
     turns = recorder.build_record().transcript
@@ -176,6 +179,7 @@ async def test_summary_fallback_uses_peak_frustration(make_agent):
     )
     await agent.respond("This is slow.")
     await agent.respond("This is ridiculous, I want my money back now!")
+    await agent.wait_for_reading()
     record = await recorder.finish()
     assert record.summary.customer_sentiment is Sentiment.ANGRY
 
@@ -191,3 +195,28 @@ async def test_record_keeps_the_conversation_language(orders, tmp_path):
     record = await recorder.finish()
     assert record.language is Language.ES
     assert model.instructions == [None]
+
+
+class SlowAnalyzer:
+    """Holds the reading until the test releases it."""
+
+    def __init__(self):
+        self.release = asyncio.Event()
+
+    async def analyze(self, customer_text, recent_turns):
+        await self.release.wait()
+        return SentimentDraft(frustration=0.9, reason="customer is upset")
+
+
+async def test_reply_does_not_wait_for_the_frustration_reading(orders, tmp_path):
+    session = TicketSession(orders.get)
+    recorder = ConversationRecorder(
+        "text", session, JsonConversationStore(tmp_path), SafeSummarizer(None)
+    )
+    analyzer = SlowAnalyzer()
+    model = ScriptedModel([ModelReply(text="Sorry about that.")])
+    agent = TextAgent(model, ToolExecutor(session), recorder, SentimentMonitor(analyzer, recorder))
+    reply = await agent.respond("This is the third time I call!")
+    assert reply.text == "Sorry about that."
+    analyzer.release.set()
+    assert "acknowledge" in await agent.wait_for_reading()

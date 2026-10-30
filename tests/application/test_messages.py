@@ -2,7 +2,13 @@
 
 import pytest
 
-from support_agent.application.messages import LANGUAGE_NAMES, closing_message, closing_messages
+from support_agent.application.messages import (
+    LANGUAGE_NAMES,
+    closing_message,
+    closing_messages,
+    retry_message,
+    technical_error_message,
+)
 from support_agent.application.prompts import greeting_trigger, system_prompt
 from support_agent.application.tools import ToolExecutor
 from support_agent.domain.models import Language, Stage
@@ -14,6 +20,8 @@ CLOSING_STAGES = {Stage.COMPLETED, Stage.ESCALATED, Stage.ENDED}
 def test_every_language_has_every_closing_message(language):
     assert set(closing_messages(language)) == CLOSING_STAGES
     assert language in LANGUAGE_NAMES
+    assert retry_message(language)
+    assert technical_error_message(language)
 
 
 @pytest.mark.parametrize("language", list(Language))

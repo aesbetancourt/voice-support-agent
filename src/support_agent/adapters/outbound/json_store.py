@@ -10,7 +10,7 @@ from support_agent.domain.models import ConversationRecord
 
 
 class JsonConversationStore:
-    def __init__(self, directory: Path):
+    def __init__(self, directory: Path) -> None:
         self.directory = directory
 
     def path_for(self, conversation_id: str) -> Path:
@@ -30,8 +30,3 @@ class JsonConversationStore:
         except BaseException:
             Path(tmp_name).unlink(missing_ok=True)
             raise
-
-    def load(self, conversation_id: str) -> ConversationRecord:
-        return ConversationRecord.model_validate_json(
-            self.path_for(conversation_id).read_text(encoding="utf-8")
-        )

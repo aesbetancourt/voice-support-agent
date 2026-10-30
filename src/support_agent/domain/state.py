@@ -50,7 +50,7 @@ class SessionClosedError(RuntimeError):
 
 
 class TicketSession:
-    def __init__(self, find_order: OrderLookup, max_attempts: int = 3):
+    def __init__(self, find_order: OrderLookup, max_attempts: int = 3) -> None:
         self._find_order = find_order
         self.max_attempts = max_attempts
         self.stage = Stage.COLLECTING

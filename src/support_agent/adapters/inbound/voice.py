@@ -37,11 +37,14 @@ from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import (
     AssistantTurnStoppedMessage,
+    LLMAssistantAggregator,
     LLMContextAggregatorPair,
+    LLMUserAggregator,
     LLMUserAggregatorParams,
     UserTurnStoppedMessage,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+from pipecat.processors.frameworks.rtvi.processor import RTVIProcessor
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.utils import create_transport
 from pipecat.services.google.stt import GoogleSTTService
@@ -50,10 +53,12 @@ from pipecat.services.google.vertex.llm import GoogleVertexLLMService
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.transcriptions.language import Language as PipecatLanguage
 from pipecat.transports.base_transport import BaseTransport, TransportParams
+from pipecat.turns.user_stop.base_user_turn_stop_strategy import BaseUserTurnStopStrategy
 from pipecat.workers.runner import WorkerRunner
 
 from support_agent.adapters.outbound.gemini import ThoughtTagStripper, make_client
 from support_agent.application.prompts import (
+    agent_note,
     greeting_trigger,
     language_switch_note,
     system_prompt,
@@ -66,7 +71,7 @@ from support_agent.bootstrap import (
     make_summarizer,
     new_conversation,
 )
-from support_agent.config import ConfigError, Settings
+from support_agent.config import AGENT_TEMPERATURE, ConfigError, Settings
 from support_agent.domain.models import Category, Language
 from support_agent.domain.validators import language_switch, parse_language
 
@@ -88,6 +93,8 @@ class VoiceProfile:
     phrase_hints: list[dict[str, Any]]
 
 
+# Phrase boosts: the order prefix most, because a misheard ORD fails the lookup;
+# category words least, because Gemini maps them from free speech anyway.
 VOICE_PROFILES = {
     Language.EN: VoiceProfile(
         stt_language=PipecatLanguage.EN_US,
@@ -140,7 +147,9 @@ def build_tools_schema() -> ToolsSchema:
     )
 
 
-def make_tool_handler(executor: ToolExecutor, on_closing: Callable[[str], None] | None = None):
+def make_tool_handler(
+    executor: ToolExecutor, on_closing: Callable[[str], None] | None = None
+) -> Callable[[FunctionCallParams], Awaitable[None]]:
     """Return a Pipecat function handler that runs every tool through the executor."""
 
     async def handle(params: FunctionCallParams) -> None:
@@ -182,7 +191,7 @@ def make_guidance_sender(
         if guidance is None:
             return
         # run_llm=False: the guidance shapes the next reply; it does not trigger a new one.
-        message = {"role": "developer", "content": guidance}
+        message = {"role": "developer", "content": agent_note(guidance)}
         try:
             await queue_frames([LLMMessagesAppendFrame(messages=[message], run_llm=False)])
         except Exception as exc:  # noqa: BLE001 - the call can end while the task runs
@@ -205,7 +214,7 @@ def stt_languages(language: Language) -> list[PipecatLanguage]:
 
 def language_switch_frames(language: Language) -> list[Frame]:
     """Frames that move the rest of the pipeline to a new customer language."""
-    note = {"role": "developer", "content": language_switch_note(language)}
+    note = {"role": "developer", "content": agent_note(language_switch_note(language))}
     return [
         TTSUpdateSettingsFrame(delta=tts_settings(language)),
         # run_llm=False: the note shapes the reply to the turn that is in progress.
@@ -224,7 +233,7 @@ class LanguageSwitcher(FrameProcessor):
         self,
         language: Language,
         on_switch: Callable[[Language], Awaitable[None]],
-    ):
+    ) -> None:
         super().__init__()
         self.language = language
         self._on_switch = on_switch
@@ -268,7 +277,9 @@ class ThoughtTagFilter(FrameProcessor):
         await self.push_frame(frame, direction)
 
 
-def build_services(settings: Settings, language: Language):
+def build_services(
+    settings: Settings, language: Language
+) -> tuple[GoogleSTTService, GoogleVertexLLMService, GoogleTTSService]:
     project_id = settings.require_project()
     hints = {
         hint["value"]: hint for profile in VOICE_PROFILES.values() for hint in profile.phrase_hints
@@ -288,7 +299,7 @@ def build_services(settings: Settings, language: Language):
         settings=GoogleVertexLLMService.Settings(
             model=settings.model,
             system_instruction=system_prompt("voice", language, switchable=True),
-            temperature=0.4,
+            temperature=AGENT_TEMPERATURE,
         ),
     )
     tts = GoogleTTSService(settings=tts_settings(language))
@@ -367,12 +378,12 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     await runner.add_workers(worker)
 
     @worker.rtvi.event_handler("on_client_ready")
-    async def on_client_ready(rtvi):
+    async def on_client_ready(rtvi: RTVIProcessor) -> None:
         context.add_message({"role": "developer", "content": greeting_trigger(language)})
         await worker.queue_frames([LLMRunFrame()])
 
     @transport.event_handler("on_client_disconnected")
-    async def on_client_disconnected(transport, client):
+    async def on_client_disconnected(transport: BaseTransport, client: object) -> None:
         logger.info(f"Client disconnected from conversation {recorder.id}")
         await runner.cancel()
 
@@ -398,7 +409,11 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     )
 
     @user_aggregator.event_handler("on_user_turn_stopped")
-    async def on_user_turn_stopped(aggregator, strategy, message: UserTurnStoppedMessage):
+    async def on_user_turn_stopped(
+        aggregator: LLMUserAggregator,
+        strategy: BaseUserTurnStopStrategy,
+        message: UserTurnStoppedMessage,
+    ) -> None:
         turn_index = recorder.add_turn("user", message.content or "")
         if send_guidance is not None and message.content:
             task = asyncio.create_task(send_guidance(turn_index, message.content))
@@ -406,7 +421,9 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
             task.add_done_callback(sentiment_tasks.discard)
 
     @assistant_aggregator.event_handler("on_assistant_turn_stopped")
-    async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
+    async def on_assistant_turn_stopped(
+        aggregator: LLMAssistantAggregator, message: AssistantTurnStoppedMessage
+    ) -> None:
         if message.content and message.content.strip() not in closing_messages:
             recorder.add_turn("assistant", message.content)
 
@@ -420,7 +437,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         logger.info(f"Saved conversation {record.id} ({record.status.value}): {recorder.location}")
 
 
-async def bot(runner_args: RunnerArguments):
+async def bot(runner_args: RunnerArguments) -> None:
     """Entry point that the Pipecat development runner calls for each session."""
     transport_params = {
         "webrtc": lambda: TransportParams(audio_in_enabled=True, audio_out_enabled=True),

@@ -1,1 +1,1 @@
-"""Domain core: data models, validation rules, ticket state machine and tools."""
+"""Domain core: data models, validation rules, the ticket state machine, frustration policy."""

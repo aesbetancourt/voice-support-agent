@@ -9,7 +9,7 @@ from support_agent.domain.models import Order
 
 
 class JsonOrderRepository:
-    def __init__(self, orders: list[Order]):
+    def __init__(self, orders: list[Order]) -> None:
         self._orders = {order.order_number: order for order in orders}
 
     @classmethod

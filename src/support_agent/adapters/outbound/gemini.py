@@ -9,10 +9,11 @@ from google import genai
 from google.genai import types
 
 from support_agent.application.ports import FunctionCall, ModelReply
+from support_agent.application.prompts import agent_note
 from support_agent.application.sentiment import SENTIMENT_INSTRUCTION
 from support_agent.application.summary import SUMMARY_INSTRUCTION, summary_input
 from support_agent.application.tools import TOOL_SPECS
-from support_agent.config import Settings
+from support_agent.config import AGENT_TEMPERATURE, Settings
 from support_agent.domain.models import (
     ConversationRecord,
     SentimentDraft,
@@ -23,6 +24,7 @@ from support_agent.domain.models import (
 
 # Retry rate limits and server errors with exponential backoff.
 _RETRY = types.HttpRetryOptions(attempts=3, initial_delay=1.0, max_delay=8.0)
+# A model round takes about 1 s; 30 s stops a hung request without cutting a slow one.
 _TIMEOUT_MS = 30_000
 
 _OPEN_TAG = "<thought>"
@@ -100,13 +102,13 @@ def make_client(settings: Settings) -> genai.Client:
 class GeminiChatModel:
     """``ChatModel`` port with manual function calling."""
 
-    def __init__(self, client: genai.Client, model: str, system_prompt: str):
+    def __init__(self, client: genai.Client, model: str, system_prompt: str) -> None:
         self._client = client
         self._model = model
         self._history: list[types.Content] = []
         self._config = types.GenerateContentConfig(
             system_instruction=system_prompt,
-            temperature=0.4,
+            temperature=AGENT_TEMPERATURE,
             tools=[
                 types.Tool(
                     function_declarations=[
@@ -124,13 +126,31 @@ class GeminiChatModel:
         )
 
     async def send_text(self, text: str, instruction: str | None = None) -> ModelReply:
-        parts = [types.Part.from_text(text=text)]
+        parts = self._close_open_calls()
         if instruction:
-            # Mark the guidance clearly, so the model does not read it as customer speech.
-            note = f"[Guidance for the agent, not said by the customer: {instruction}]"
-            parts.insert(0, types.Part.from_text(text=note))
+            parts.append(types.Part.from_text(text=agent_note(instruction)))
+        parts.append(types.Part.from_text(text=text))
         self._history.append(types.Content(role="user", parts=parts))
         return await self._generate()
+
+    def _close_open_calls(self) -> list[types.Part]:
+        """Responses for tool calls left open when the agent loop hit MAX_TOOL_ROUNDS.
+
+        Gemini rejects a request whose last model turn has calls without responses.
+        """
+        last = self._history[-1] if self._history else None
+        if last is None or last.role != "model":
+            return []
+        error = {"ok": False, "error": "Not run: too many tool calls in one turn."}
+        return [
+            types.Part(
+                function_response=types.FunctionResponse(
+                    id=part.function_call.id, name=part.function_call.name, response=error
+                )
+            )
+            for part in last.parts or []
+            if part.function_call
+        ]
 
     async def send_tool_results(
         self, results: list[tuple[FunctionCall, dict[str, Any]]]
@@ -172,7 +192,7 @@ class GeminiChatModel:
 class GeminiSummarizer:
     """``Summarizer`` port with Gemini structured output."""
 
-    def __init__(self, client: genai.Client, model: str):
+    def __init__(self, client: genai.Client, model: str) -> None:
         self._client = client
         self._model = model
 
@@ -196,7 +216,7 @@ class GeminiSummarizer:
 class GeminiSentimentAnalyzer:
     """``SentimentAnalyzer`` port with a small, fast Gemini model and structured output."""
 
-    def __init__(self, client: genai.Client, model: str):
+    def __init__(self, client: genai.Client, model: str) -> None:
         self._client = client
         self._model = model
 
