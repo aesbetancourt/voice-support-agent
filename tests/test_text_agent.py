@@ -111,6 +111,14 @@ async def test_endless_tool_calls_fall_back_to_a_safe_reply(make_agent):
     assert reply.text == FALLBACK_REPLY
 
 
+async def test_recorder_skips_duplicate_consecutive_turn(make_agent):
+    _, _, _, recorder = make_agent([])
+    recorder.add_turn("assistant", "Goodbye!")
+    recorder.add_turn("assistant", "Goodbye!")
+    recorder.add_turn("user", "Goodbye!")
+    assert [t.role for t in recorder.build_record().transcript] == ["assistant", "user"]
+
+
 async def test_dropped_conversation_is_saved_as_abandoned(make_agent):
     agent, _, _, recorder = make_agent([ModelReply(text="Hi!")])
     await agent.greet()

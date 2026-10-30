@@ -8,6 +8,8 @@ Each browser connection gets its own pipeline, ticket and saved record.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from google.auth.exceptions import GoogleAuthError
 from loguru import logger
 from pipecat.adapters.llm.schemas.function_schema import FunctionSchema
@@ -68,7 +70,7 @@ def build_tools_schema() -> ToolsSchema:
     )
 
 
-def make_tool_handler(executor: ToolExecutor):
+def make_tool_handler(executor: ToolExecutor, on_closing: Callable[[str], None] | None = None):
     """Return a Pipecat function handler that runs every tool through the executor."""
 
     async def handle(params: FunctionCallParams) -> None:
@@ -81,6 +83,9 @@ def make_tool_handler(executor: ToolExecutor):
         await params.result_callback(
             outcome.payload, properties=FunctionCallResultProperties(run_llm=False)
         )
+        # Record the message here: the call can end before the assistant turn event fires.
+        if on_closing is not None:
+            on_closing(outcome.closing_message)
         await params.llm.push_frame(TTSSpeakFrame(outcome.closing_message))
         await params.llm.push_frame(EndWorkerFrame(reason="conversation closed"))
 
@@ -127,7 +132,12 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     recorder = conversation.recorder
     logger.info(f"Starting voice conversation {recorder.id}")
 
-    llm.register_function(None, make_tool_handler(conversation.executor))
+    llm.register_function(
+        None,
+        make_tool_handler(
+            conversation.executor, on_closing=lambda text: recorder.add_turn("assistant", text)
+        ),
+    )
 
     context = LLMContext(tools=build_tools_schema())
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(

@@ -56,6 +56,10 @@ class ConversationRecorder:
         text = text.strip()
         if not text:
             return
+        # The voice channel can report the same closing message twice; keep one copy.
+        last = self._transcript[-1] if self._transcript else None
+        if last is not None and last.role == role and last.text == text:
+            return
         self._transcript.append(Turn(role=role, text=text))
         self._store.save(self.build_record())
 

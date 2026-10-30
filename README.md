@@ -203,7 +203,7 @@ data/orders.json      # Mock orders
 
 ## Testing
 
-- **`uv run pytest`** runs 51 tests in under a second, with no network: validators, every
+- **`uv run pytest`** runs 52 tests in under a second, with no network: validators, every
   state-machine rule, the tool executor, Gemini response parsing with a fake client,
   full text conversations with a scripted model,
   and the voice tool handler (closing message and end of call).

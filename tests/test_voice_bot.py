@@ -40,10 +40,11 @@ async def test_handler_returns_result_to_llm(session):
 
 
 async def test_closing_tool_speaks_fixed_message_and_ends_call(session):
-    llm, results = FakeLLM(), []
-    handler = make_tool_handler(ToolExecutor(session))
+    llm, results, recorded = FakeLLM(), [], []
+    handler = make_tool_handler(ToolExecutor(session), on_closing=recorded.append)
     await handler(make_params(llm, "escalate_to_human", {"reason": "asked for a person"}, results))
     assert results[0][1].run_llm is False
+    assert recorded == [llm.frames[0].text]
     speak, end = llm.frames
     assert isinstance(speak, TTSSpeakFrame)
     assert "human agent" in speak.text
