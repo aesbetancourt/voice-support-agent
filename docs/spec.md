@@ -6,7 +6,7 @@ how the plan changed during the work, and what is still open.
 
 | | |
 |---|---|
-| **Status** | All core requirements met. Bonus features: 3 of 4 (RAG is not delivered, see [section 7](#7-not-delivered-rag-over-a-knowledge-base)). The demo video URL is still to add. Open items listed in [section 8](#8-open-items) |
+| **Status** | All core requirements and deliverables met. Bonus features: 3 of 4 (RAG is not delivered, see [section 7](#7-not-delivered-rag-over-a-knowledge-base)). Open items listed in [section 8](#8-open-items) |
 | **Code** | `src/support_agent/`, hexagonal architecture ([diagram](diagrams/architecture.html)) |
 | **Tests** | 151 automated tests, no network. 7 live simulated personas, passing in English and Spanish |
 | **Repository** | <https://github.com/aesbetancourt/voice-support-agent> |
@@ -68,9 +68,9 @@ Legend: ✅ done · 🟡 done with a caveat · ⬜ not done
 | 4.3 | README: system architecture overview | ✅ | Hexagonal view, voice runtime view, state machine, tools and project structure | [README → Architecture](../README.md#architecture) · [diagram](diagrams/architecture.html) |
 | 4.4 | README: key design decisions | ✅ | A decision table in the README, plus 9 ADRs that record the rejected alternatives | [README → Key design decisions](../README.md#key-design-decisions) · [ADRs](adr/) |
 | 4.5 | README: potential improvements | ✅ | A table by area: speech, sentiment, latency, knowledge (RAG), identity, conversation, languages, data, evaluation, production, security | [README → Potential improvements](../README.md#potential-improvements) |
-| 4.6 | URL to a demo video of sample conversations | ⬜ | To record. The script covers a full ticket, an invalid order number, frustration with escalation, and a live switch to Spanish | — |
+| 4.6 | URL to a demo video of sample conversations | ✅ | Three live voice calls: a full ticket with an invalid order number, frustration with escalation, and a live switch to Spanish | [Loom video](https://www.loom.com/share/0ce134ab2afa44969e9463f6c0f16301) · README |
 
-**Result: 17 of 18 items done. Item 4.6, the demo video URL, is still to add.**
+**Result: 18 of 18 items done.**
 
 ### 2.5 Bonus features (optional)
 
@@ -221,6 +221,5 @@ Steps to add it:
 | Item | State | Next step |
 |---|---|---|
 | RAG over a knowledge base | ⬜ Not delivered. Planned as a potential improvement | Follow the steps in [section 7](#7-not-delivered-rag-over-a-knowledge-base) |
-| Demo video URL | ⬜ To record | Record the video, upload it, and add the URL to the README |
 | Memory across calls | ⬜ Explored, then deferred | Needs a decision on identity verification before history is shown (see README → Potential improvements) |
 | Latency measurement | 🟡 Model latency measured and fixed by the switch to 3.5 Flash. The full voice turn is not measured | Read the Pipecat TTFB metrics per stage (STT, turn detection, LLM, TTS) from a real call |

@@ -4,6 +4,9 @@ A voice customer-support agent for a fictional online electronics store.
 The customer talks to the agent in the browser. The agent collects the details of
 the problem, checks them, and saves a validated ticket and a summary as JSON.
 
+**Demo video (about 5 min):** [three sample calls on Loom](https://www.loom.com/share/0ce134ab2afa44969e9463f6c0f16301): a full ticket with an invalid order
+number, an angry customer escalated to a human, and a live switch to Spanish.
+
 The whole stack runs on Google Cloud:
 
 | Layer | Service |
