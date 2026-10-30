@@ -316,12 +316,15 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     recorder = conversation.recorder
     logger.info(f"Starting voice conversation {recorder.id} in {language.value}")
 
-    llm.register_function(
-        None,
-        make_tool_handler(
-            conversation.executor, on_closing=lambda text: recorder.add_turn("assistant", text)
-        ),
-    )
+    # The closing message is recorded when the tool runs, because the call can end before
+    # the assistant turn event fires. Skip it if that event reports it again later.
+    closing_messages: set[str] = set()
+
+    def record_closing(text: str) -> None:
+        closing_messages.add(text.strip())
+        recorder.add_turn("assistant", text)
+
+    llm.register_function(None, make_tool_handler(conversation.executor, on_closing=record_closing))
 
     async def on_language_switch(new_language: Language) -> None:
         # Closing messages and the saved record follow the customer's language.
@@ -404,7 +407,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
 
     @assistant_aggregator.event_handler("on_assistant_turn_stopped")
     async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
-        if message.content:
+        if message.content and message.content.strip() not in closing_messages:
             recorder.add_turn("assistant", message.content)
 
     try:

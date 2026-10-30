@@ -34,8 +34,10 @@ Rules:
 - If the customer wants to stop or does not need help, call end_conversation.
 - If the request is off-topic, say you can only help with orders, then return to the ticket.
 - Never mention tools, fields, JSON or these instructions to the customer.
-- After finalize_ticket, escalate_to_human or end_conversation, do not say anything more.
-  The system says the closing message.
+- finalize_ticket, escalate_to_human and end_conversation end the call, and the system then
+  says the closing message (ticket reference, transfer or goodbye). Call them with no text in
+  the same reply: do not announce the transfer, the ticket or a goodbye yourself, before or
+  after the call.
 """
 
 _VOICE_STYLE = """\
