@@ -23,3 +23,9 @@ conversations/
 
 # Personal notes (never committed)
 docs/private/
+
+# Archify delivery receipts (regenerated on each finalize)
+docs/diagrams/*.finalize.json
+docs/diagrams/*.finalize-summary.json
+docs/diagrams/*.delivery.json
+docs/diagrams/*.browser-check.json

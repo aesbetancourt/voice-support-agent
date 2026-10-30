@@ -1,0 +1,499 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Orbio Store Support Agent — Hexagonal Architecture",
+    "locale": "en",
+    "output": "docs/diagrams/architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "customer",
+      "type": "external",
+      "label": "Customer",
+      "sublabel": "speaks to Ava",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Browser client",
+      "sublabel": "Pipecat prebuilt UI",
+      "pos": [
+        40,
+        180
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "operator",
+      "type": "external",
+      "label": "Operator",
+      "sublabel": "terminal",
+      "pos": [
+        40,
+        420
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "speech",
+      "type": "cloud",
+      "label": "Google STT · TTS",
+      "sublabel": "per-language profile",
+      "pos": [
+        260,
+        40
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "vertex",
+      "type": "cloud",
+      "label": "Vertex AI Gemini",
+      "sublabel": "3.8 Flash · 3.5 Flash-Lite",
+      "pos": [
+        1300,
+        40
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "voice",
+      "type": "backend",
+      "label": "Voice adapter",
+      "sublabel": "Pipecat pipeline · voice.py",
+      "pos": [
+        260,
+        180
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "cli",
+      "type": "backend",
+      "label": "CLI",
+      "sublabel": "chat · voice · simulate",
+      "pos": [
+        260,
+        420
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "simulator",
+      "type": "backend",
+      "label": "Simulator",
+      "sublabel": "7 Gemini personas",
+      "pos": [
+        260,
+        540
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "bootstrap",
+      "type": "backend",
+      "label": "bootstrap.py",
+      "sublabel": "composition root",
+      "pos": [
+        260,
+        660
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "core",
+      "type": "backend",
+      "label": "Conversation core",
+      "sublabel": "tools · recorder · sentiment",
+      "tag": "ToolExecutor",
+      "pos": [
+        520,
+        180
+      ],
+      "size": [
+        180,
+        184
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "TextAgent loop",
+      "sublabel": "text and simulations",
+      "pos": [
+        520,
+        420
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "ports",
+      "type": "backend",
+      "label": "Ports",
+      "sublabel": "5 protocols",
+      "tag": "interfaces",
+      "pos": [
+        780,
+        420
+      ],
+      "size": [
+        180,
+        284
+      ]
+    },
+    {
+      "id": "session",
+      "type": "backend",
+      "label": "TicketSession",
+      "sublabel": "state machine · validators",
+      "pos": [
+        780,
+        180
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "frustration",
+      "type": "backend",
+      "label": "FrustrationPolicy",
+      "sublabel": "acknowledge / offer human",
+      "pos": [
+        780,
+        300
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "gemini",
+      "type": "backend",
+      "label": "Gemini adapter",
+      "sublabel": "chat · summary · sentiment",
+      "pos": [
+        1050,
+        420
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "orders_repo",
+      "type": "backend",
+      "label": "JsonOrderRepository",
+      "sublabel": "read-only lookup",
+      "pos": [
+        1050,
+        530
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "store",
+      "type": "backend",
+      "label": "JsonConversationStore",
+      "sublabel": "atomic writes",
+      "pos": [
+        1050,
+        640
+      ],
+      "size": [
+        180,
+        64
+      ]
+    },
+    {
+      "id": "orders_file",
+      "type": "database",
+      "label": "orders.json",
+      "sublabel": "10 mock orders",
+      "pos": [
+        1300,
+        530
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "records",
+      "type": "database",
+      "label": "conversations/*.json",
+      "sublabel": "transcript · ticket · summary",
+      "pos": [
+        1300,
+        640
+      ],
+      "size": [
+        170,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Google Cloud",
+      "wraps": [
+        "speech",
+        "vertex"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Inbound adapters",
+      "wraps": [
+        "voice",
+        "cli",
+        "simulator"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Application core",
+      "wraps": [
+        "core",
+        "agent",
+        "ports",
+        "session",
+        "frustration"
+      ],
+      "pad": 28
+    },
+    {
+      "kind": "region",
+      "label": "Domain",
+      "wraps": [
+        "session",
+        "frustration"
+      ],
+      "pad": 12
+    },
+    {
+      "kind": "region",
+      "label": "Outbound adapters",
+      "wraps": [
+        "gemini",
+        "orders_repo",
+        "store"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "customer-speaks",
+      "from": "customer",
+      "to": "browser",
+      "label": "speaks",
+      "variant": "emphasis"
+    },
+    {
+      "id": "browser-webrtc",
+      "from": "browser",
+      "to": "voice",
+      "label": "WebRTC",
+      "variant": "emphasis"
+    },
+    {
+      "id": "voice-speech",
+      "from": "voice",
+      "to": "speech",
+      "label": "audio"
+    },
+    {
+      "id": "voice-llm",
+      "from": "voice",
+      "to": "vertex",
+      "label": "Gemini via Pipecat"
+    },
+    {
+      "id": "voice-core",
+      "from": "voice",
+      "to": "core",
+      "label": "tool calls",
+      "variant": "emphasis"
+    },
+    {
+      "id": "operator-cli",
+      "from": "operator",
+      "to": "cli",
+      "label": "commands"
+    },
+    {
+      "id": "cli-simulator",
+      "from": "cli",
+      "to": "simulator",
+      "label": "simulate"
+    },
+    {
+      "id": "cli-agent",
+      "from": "cli",
+      "to": "agent",
+      "label": "chat"
+    },
+    {
+      "id": "simulator-agent",
+      "from": "simulator",
+      "to": "agent",
+      "label": "personas"
+    },
+    {
+      "id": "agent-core",
+      "from": "agent",
+      "to": "core",
+      "label": "tool calls"
+    },
+    {
+      "id": "core-session",
+      "from": "core",
+      "to": "session",
+      "label": "rules",
+      "variant": "emphasis"
+    },
+    {
+      "id": "core-frustration",
+      "from": "core",
+      "to": "frustration",
+      "label": "readings"
+    },
+    {
+      "id": "agent-ports",
+      "from": "agent",
+      "to": "ports",
+      "label": "uses"
+    },
+    {
+      "id": "core-ports",
+      "from": "core",
+      "to": "ports",
+      "label": "uses"
+    },
+    {
+      "id": "gemini-implements",
+      "from": "gemini",
+      "to": "ports",
+      "label": "implements"
+    },
+    {
+      "id": "orders-implements",
+      "from": "orders_repo",
+      "to": "ports",
+      "label": "implements"
+    },
+    {
+      "id": "store-implements",
+      "from": "store",
+      "to": "ports",
+      "label": "implements"
+    },
+    {
+      "id": "gemini-vertex",
+      "from": "gemini",
+      "to": "vertex",
+      "label": "Gen AI SDK"
+    },
+    {
+      "id": "orders-read",
+      "from": "orders_repo",
+      "to": "orders_file",
+      "label": "reads"
+    },
+    {
+      "id": "store-write",
+      "from": "store",
+      "to": "records",
+      "label": "writes"
+    },
+    {
+      "id": "bootstrap-wires",
+      "from": "bootstrap",
+      "to": "ports",
+      "label": "wires adapters"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Hexagonal rule",
+      "items": [
+        "Dependencies point inward: adapters → application → domain",
+        "The domain imports nothing from the project",
+        "tests/test_architecture.py enforces the direction"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Rules in code",
+      "items": [
+        "Gemini changes the ticket only through 6 tools",
+        "TicketSession validates values and owns the stage",
+        "Closing messages and ticket IDs are fixed text"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Voice path",
+      "items": [
+        "Pipecat runs STT → Gemini → TTS in one Python process",
+        "Its Google services call Cloud directly, not through the ports",
+        "Tool calls and turns still reach the same core"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Languages and sentiment",
+      "items": [
+        "English or Spanish, fixed per conversation",
+        "Spanish STT uses chirp_3, English latest_long",
+        "Flash-Lite rates frustration in the background"
+      ]
+    }
+  ]
+}
