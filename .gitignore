@@ -20,3 +20,6 @@ wheels/
 conversations/
 
 .DS_Store
+
+# Personal notes (never committed)
+docs/private/
