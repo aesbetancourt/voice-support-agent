@@ -1,12 +1,12 @@
 {
-  "id": "20261110T135446-08487165",
+  "id": "20261110T144845-168d470c",
   "channel": "text",
   "language": "en",
   "job_id": "harbor-wh-operator-getafe",
   "status": "booked",
   "stage": "booked",
-  "started_at": "2026-11-10T13:54:46.873735Z",
-  "ended_at": "2026-11-10T13:55:54.129676Z",
+  "started_at": "2026-11-10T14:48:45.043545Z",
+  "ended_at": "2026-11-10T14:49:57.392161Z",
   "scorecard": {
     "candidate_name": "Marta Diaz",
     "must_haves": {
@@ -24,7 +24,7 @@
       },
       "start_date": {
         "requirement": "start_date",
-        "answer": "2026-11-10",
+        "answer": "immediately (2026-11-10)",
         "passed": true,
         "confirmed": true
       },
@@ -38,7 +38,7 @@
     "answers": {
       "teamwork": {
         "question_id": "teamwork",
-        "summary": "The candidate split the supermarket team into pairs to unload late-arriving delivery trucks before opening.",
+        "summary": "During a late Christmas delivery at a supermarket, she split the team into pairs to unload the trucks efficiently before opening.",
         "evidence_quote": "split our team into pairs",
         "specificity": "specific",
         "score": 4,
@@ -46,8 +46,8 @@
       },
       "safety": {
         "question_id": "safety",
-        "summary": "The candidate noticed a leaning pallet near an emergency exit, stopped work, reported it, and helped restack it.",
-        "evidence_quote": "stopped work in that area and reported it",
+        "summary": "She noticed a heavy pallet leaning dangerously near an emergency exit, stopped work, reported it to her supervisor, and got it restacked.",
+        "evidence_quote": "stopped work in that area",
         "specificity": "specific",
         "score": 4,
         "follow_up_asked": false
@@ -57,120 +57,120 @@
       "Can I bring my dog to work?"
     ],
     "interview": {
-      "id": "20261112-1230",
-      "starts_at": "2026-11-12T12:30:00"
+      "id": "20261113-1000",
+      "starts_at": "2026-11-13T10:00:00"
     },
-    "booking_id": "INT-797666",
+    "booking_id": "INT-129051",
     "recommendation": "advance"
   },
   "close_reason": "Interview booked.",
   "transcript": [
     {
       "role": "assistant",
-      "text": "Hi there! I'm Ava, an AI recruiting assistant for Harbor Logistics. Thanks for applying for our Warehouse Operator role in Getafe! \n\nThis quick screening call takes about five minutes, and your answers will be saved for our recruiting team, who make all the final decisions. Could you please tell me your name and if you're ready to get started?",
-      "at": "2026-11-10T13:54:51.388518Z",
+      "text": "Hi! I'm Ava, an AI recruiting assistant for Harbor Logistics. I'm calling about your application for the Warehouse Operator role. This call takes about five minutes, your answers are saved for our recruiting team, and a person on the team makes every decision. Could you please tell me your name, and do you agree to continue with this screening call?",
+      "at": "2026-11-10T14:48:47.018747Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "Hi Ava! Yes, I'm Marta Diaz, and I'm definitely ready to get started. Before we begin, could you tell me how much this Warehouse Operator role pays?",
-      "at": "2026-11-10T13:54:54.272552Z",
+      "text": "Hi Ava! Yes, my name is Marta Diaz, and I'm happy to go ahead with this call. Before we start, could you tell me how much this position pays?",
+      "at": "2026-11-10T14:48:50.519704Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The candidate is calm and enthusiastic about starting.",
+        "reason": "The candidate is polite and asks about the pay calmly.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "Great to meet you, Marta! \n\nTo answer your question, the pay is 1,580 euros gross per month, in 14 payments a year, and Saturday shifts in peak season are paid at 1.5 times the normal rate. \n\nTo kick things off with our questions, do you have a valid permit to work in Spain?",
-      "at": "2026-11-10T13:55:02.715311Z",
+      "text": "The pay is 1,580 euros gross per month, in 14 payments a year, and Saturday shifts in peak season are paid at 1.5 times the normal rate. \n\nTo start, Marta, do you have a valid permit to work in Spain?",
+      "at": "2026-11-10T14:48:59.816002Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "That pay rate sounds great, thank you. Yes, I have a valid permit to work in Spain and am fully authorized to work here.",
-      "at": "2026-11-10T13:55:05.752980Z",
+      "text": "That sounds great, thank you for the information. Yes, I do have a valid permit to work in Spain.",
+      "at": "2026-11-10T14:49:01.453868Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The candidate is positive and answers the question politely.",
+        "reason": "The candidate is polite and answers the question positively.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "Perfect, thanks for confirming that, Marta! \n\nThis role has rotating morning and afternoon shifts, Monday to Friday. Which of these shifts are you able to work?",
-      "at": "2026-11-10T13:55:10.304076Z",
+      "text": "Great, thanks. This job has rotating morning and afternoon shifts, Monday to Friday. Which shifts are you able to work?",
+      "at": "2026-11-10T14:49:03.920032Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "I'm fully available for both morning and afternoon shifts. I was actually wondering, are there also night shifts available for this role, or is it only those two?",
-      "at": "2026-11-10T13:55:12.133614Z",
+      "text": "I can work both morning and afternoon shifts, no problem. I was actually wondering, are there any night shifts available as well?",
+      "at": "2026-11-10T14:49:06.527507Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The candidate is calm, positive, and asking about night shifts.",
+        "reason": "The candidate is positive and asks a polite question.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "Got it, thanks! \n\nTo answer your question, there are no night shifts for this role—it is just the weekly rotating morning and afternoon shifts. \n\nWhen would you be able to start working with us?",
-      "at": "2026-11-10T13:55:16.524560Z",
+      "text": "There are no night shifts for this role; the shifts rotate weekly between morning (6:00 to 14:00) and afternoon (14:00 to 22:00), Monday to Friday.\n\nWhen would you be able to start working with us?",
+      "at": "2026-11-10T14:49:10.976121Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "That's good to know about the shifts, thanks for clarifying. I am available to start immediately, as soon as you need me!",
-      "at": "2026-11-10T13:55:18.446429Z",
+      "text": "I can start immediately, as I don't have any notice period at the moment. I'm fully available and ready to go!",
+      "at": "2026-11-10T14:49:13.639252Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The candidate is positive, cooperative, and eager to start.",
+        "reason": "The candidate is positive, enthusiastic, and ready to start immediately.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "That's fantastic! Immediate availability is always great. \n\nCan you reliably commute to the Getafe logistics park in Madrid, especially for that 6:00 AM morning start?",
-      "at": "2026-11-10T13:55:22.748485Z",
+      "text": "That's perfect, Marta! This job is located at the Getafe logistics park in Madrid. Can you get there reliably, even for the 6:00 AM morning shift?",
+      "at": "2026-11-10T14:49:16.510958Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "Yes, I can absolutely commute to Getafe reliably. I have my own transport, so the 6:00 AM start won't be a problem for me at all.",
-      "at": "2026-11-10T13:55:25.444784Z",
+      "text": "Yes, I can get there very reliably. I have my own transport, so commuting to the Getafe logistics park for the 6:00 AM shift won't be a problem at all.",
+      "at": "2026-11-10T14:49:18.677123Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The candidate is positive and confirms their availability.",
+        "reason": "The candidate is positive and confirms reliable transport easily.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "That's perfect, having your own transport makes it so much easier! \n\nNow, I'd love to hear a bit about your experience. Could you tell me about a time you had to finish work with a team under time pressure? What did you do?",
-      "at": "2026-11-10T13:55:28.417505Z",
+      "text": "That's great to hear. Now, I'd love to hear a bit about your experience. Could you tell me about a time when you had to finish some work with a team under tight time pressure? What did you do?",
+      "at": "2026-11-10T14:49:21.238523Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "Last Christmas at the supermarket where I worked, two delivery trucks arrived really late. I split our team into pairs so we could work more efficiently, and we managed to unload everything before the store opened.",
-      "at": "2026-11-10T13:55:30.414831Z",
+      "text": "Last Christmas at the supermarket where I worked, two delivery trucks arrived really late right before opening. I quickly split our team into pairs so we could work more efficiently, and we managed to unload everything just in time.",
+      "at": "2026-11-10T14:49:22.988738Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The candidate provides a calm and detailed answer about teamwork.",
+        "reason": "The candidate provides a calm, detailed answer to the question.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "That sounds like a very busy shift, great job taking the initiative there! \n\nCould you tell me about a time you noticed a safety risk or a mistake at work? What did you do about it?",
-      "at": "2026-11-10T13:55:34.051002Z",
+      "text": "That sounds like a busy day, but you handled it really well! \n\nCould you also tell me about a time you noticed a safety risk or a mistake at work, and what you did about it?",
+      "at": "2026-11-10T14:49:26.972847Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "Once I noticed a pallet leaning dangerously near one of the emergency exits. I immediately stopped work in that area and reported it to my supervisor, and we got it safely restacked right away.",
-      "at": "2026-11-10T13:55:35.956772Z",
+      "text": "Once, I noticed a heavy pallet leaning dangerously near one of the emergency exits. I immediately stopped work in that area and reported it to my supervisor, and we got it safely restacked right away.",
+      "at": "2026-11-10T14:49:28.818834Z",
       "sentiment": {
         "frustration": 0.0,
         "reason": "The candidate calmly and clearly answers the interview question.",
@@ -179,40 +179,40 @@
     },
     {
       "role": "assistant",
-      "text": "Thanks for sharing that, Marta. Safety is definitely our top priority here, so that's great to hear. \n\nWe'd love to invite you to a 30-minute video interview with our warehouse manager. Would Wednesday, November 11th at 10:00 AM or Thursday, November 12th at 12:30 PM work for you?",
-      "at": "2026-11-10T13:55:41.494145Z",
+      "text": "Thank you, Marta, that was a great example of putting safety first. \n\nI'd like to invite you to a video interview with our warehouse manager. Would any of these times work for you?\n- Wednesday, November 11th at 4:00 PM\n- Thursday, November 12th at 12:30 PM\n- Friday, November 13th at 10:00 AM",
+      "at": "2026-11-10T14:49:32.600636Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "Before we book that, I have one more question: is it allowed to bring my dog to work with me? If that's okay, I would like to choose the Thursday, November 12th slot at 12:30 PM.",
-      "at": "2026-11-10T13:55:44.048368Z",
+      "text": "Before we book that, I have one quick question: am I allowed to bring my dog to work with me? If that's okay, I would like to choose the last option, Friday, November 13th at 10:00 AM.",
+      "at": "2026-11-10T14:49:36.914948Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The candidate asks a calm question and selects a slot.",
+        "reason": "The candidate asks a calm question and selects an interview time.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "I don't have that detail about the dog policy, but the manager will be able to answer that for you during the interview. \n\nShall we go ahead and book that Thursday slot at 12:30 PM?",
-      "at": "2026-11-10T13:55:50.691420Z",
+      "text": "I don't have that detail about bringing dogs to work, but the manager can definitely answer that during your interview. Shall we go ahead and book Friday, November 13th at 10:00 AM?",
+      "at": "2026-11-10T14:49:44.476428Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "Yes, please go ahead and book that. Thursday, November 12th at 12:30 PM works perfectly for me. Thank you so much, Ava!",
-      "at": "2026-11-10T13:55:52.583090Z",
+      "text": "Yes, please, let's go ahead and book Friday, November 13th at 10:00 AM. I can ask the manager about my dog then, thank you!",
+      "at": "2026-11-10T14:49:47.560493Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The candidate is agreeable, polite, and confirms the interview slot.",
+        "reason": "The candidate is agreeable, polite, and completely satisfied.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "Perfect. Your video interview with the warehouse manager is booked for Thursday 12 November at 12:30. Your reference is INT-797666. You will get the details by email. Thank you for your time, and good luck!",
-      "at": "2026-11-10T13:55:54.127925Z",
+      "text": "Perfect. Your video interview with the warehouse manager is booked for Friday 13 November at 10:00. Your reference is INT-129051. You will get the details by email. Thank you for your time, and good luck!",
+      "at": "2026-11-10T14:49:57.389977Z",
       "sentiment": null
     }
   ],
@@ -220,8 +220,8 @@
     {
       "name": "start_screening",
       "arguments": {
-        "consent": true,
-        "candidate_name": "Marta Diaz"
+        "candidate_name": "Marta Diaz",
+        "consent": true
       },
       "result": {
         "ok": true,
@@ -234,31 +234,30 @@
           "commute"
         ]
       },
-      "at": "2026-11-10T13:54:56.776883Z"
+      "at": "2026-11-10T14:48:55.651741Z"
     },
     {
       "name": "search_job_info",
       "arguments": {
-        "question": "What is the pay for the Warehouse Operator role?"
+        "question": "How much does the Warehouse Operator position pay?"
       },
       "result": {
         "ok": true,
         "found": true,
         "information": [
           "Pay: 1,580 euros gross per month, in 14 payments a year. Saturday shifts in peak season are paid at 1.5 times the normal rate.",
-          "After this call: a 30-minute video interview with the warehouse manager, then a 1-hour visit to the warehouse. A decision comes within one week of the visit.",
           "New operators get 2 weeks of paid training. Harbor Logistics pays for the forklift licence for operators who want it, after 3 months."
         ],
         "instruction": "Answer only from this information, in one or two short sentences. If it does not answer the question, say that the recruiter will answer it. Then continue the screening where you stopped."
       },
-      "at": "2026-11-10T13:54:59.140593Z"
+      "at": "2026-11-10T14:48:57.852214Z"
     },
     {
       "name": "record_must_have",
       "arguments": {
-        "requirement": "work_permit",
         "confirmed": false,
-        "answer": "yes"
+        "answer": "yes",
+        "requirement": "work_permit"
       },
       "result": {
         "ok": true,
@@ -269,14 +268,14 @@
           "commute"
         ]
       },
-      "at": "2026-11-10T13:55:07.684938Z"
+      "at": "2026-11-10T14:49:02.812545Z"
     },
     {
       "name": "record_must_have",
       "arguments": {
+        "requirement": "shifts",
         "answer": "morning, afternoon",
-        "confirmed": false,
-        "requirement": "shifts"
+        "confirmed": false
       },
       "result": {
         "ok": true,
@@ -286,31 +285,30 @@
           "commute"
         ]
       },
-      "at": "2026-11-10T13:55:14.080034Z"
+      "at": "2026-11-10T14:49:08.548117Z"
     },
     {
       "name": "search_job_info",
       "arguments": {
-        "question": "Are there night shifts available for this role?"
+        "question": "Are there night shifts available?"
       },
       "result": {
         "ok": true,
         "found": true,
         "information": [
           "Shifts rotate every week: the morning shift is 6:00 to 14:00 and the afternoon shift is 14:00 to 22:00, Monday to Friday. There are no night shifts. In peak season (November and December) some Saturdays are needed, and they are paid extra.",
-          "The contract is full time, 40 hours a week. It starts as a 6-month contract and becomes permanent after a good review.",
           "Each 8-hour shift has a 30-minute paid break."
         ],
         "instruction": "Answer only from this information, in one or two short sentences. If it does not answer the question, say that the recruiter will answer it. Then continue the screening where you stopped."
       },
-      "at": "2026-11-10T13:55:14.449913Z"
+      "at": "2026-11-10T14:49:09.441557Z"
     },
     {
       "name": "record_must_have",
       "arguments": {
-        "answer": "immediately",
         "requirement": "start_date",
-        "confirmed": false
+        "confirmed": false,
+        "answer": "immediately"
       },
       "result": {
         "ok": true,
@@ -319,14 +317,14 @@
           "commute"
         ]
       },
-      "at": "2026-11-10T13:55:21.319748Z"
+      "at": "2026-11-10T14:49:14.914156Z"
     },
     {
       "name": "record_must_have",
       "arguments": {
-        "confirmed": false,
         "answer": "yes",
-        "requirement": "commute"
+        "requirement": "commute",
+        "confirmed": false
       },
       "result": {
         "ok": true,
@@ -337,16 +335,16 @@
           "text": "Tell me about a time you had to finish work with a team under time pressure. What did you do?"
         }
       },
-      "at": "2026-11-10T13:55:27.080627Z"
+      "at": "2026-11-10T14:49:19.987756Z"
     },
     {
       "name": "record_answer",
       "arguments": {
-        "evidence_quote": "split our team into pairs",
-        "specificity": "specific",
-        "summary": "The candidate split the supermarket team into pairs to unload late-arriving delivery trucks before opening.",
         "question_id": "teamwork",
-        "score": 4
+        "score": 4,
+        "summary": "During a late Christmas delivery at a supermarket, she split the team into pairs to unload the trucks efficiently before opening.",
+        "evidence_quote": "split our team into pairs",
+        "specificity": "specific"
       },
       "result": {
         "ok": true,
@@ -356,23 +354,23 @@
           "text": "Tell me about a time you noticed a safety risk or a mistake at work. What did you do about it?"
         }
       },
-      "at": "2026-11-10T13:55:32.480892Z"
+      "at": "2026-11-10T14:49:25.445420Z"
     },
     {
       "name": "record_answer",
       "arguments": {
-        "summary": "The candidate noticed a leaning pallet near an emergency exit, stopped work, reported it, and helped restack it.",
-        "evidence_quote": "stopped work in that area and reported it",
+        "question_id": "safety",
         "score": 4,
-        "specificity": "specific",
-        "question_id": "safety"
+        "evidence_quote": "stopped work in that area",
+        "summary": "She noticed a heavy pallet leaning dangerously near an emergency exit, stopped work, reported it to her supervisor, and got it restacked.",
+        "specificity": "specific"
       },
       "result": {
         "ok": true,
         "instruction": "Thank the candidate. Call get_interview_slots and offer times.",
         "stage": "scheduling"
       },
-      "at": "2026-11-10T13:55:37.913622Z"
+      "at": "2026-11-10T14:49:30.133109Z"
     },
     {
       "name": "get_interview_slots",
@@ -381,20 +379,8 @@
         "ok": true,
         "slots": [
           {
-            "slot_id": "20261111-1000",
-            "starts_at": "Wednesday 2026-11-11 10:00"
-          },
-          {
-            "slot_id": "20261111-1230",
-            "starts_at": "Wednesday 2026-11-11 12:30"
-          },
-          {
             "slot_id": "20261111-1600",
             "starts_at": "Wednesday 2026-11-11 16:00"
-          },
-          {
-            "slot_id": "20261112-1000",
-            "starts_at": "Thursday 2026-11-12 10:00"
           },
           {
             "slot_id": "20261112-1230",
@@ -403,11 +389,23 @@
           {
             "slot_id": "20261112-1600",
             "starts_at": "Thursday 2026-11-12 16:00"
+          },
+          {
+            "slot_id": "20261113-1000",
+            "starts_at": "Friday 2026-11-13 10:00"
+          },
+          {
+            "slot_id": "20261113-1230",
+            "starts_at": "Friday 2026-11-13 12:30"
+          },
+          {
+            "slot_id": "20261113-1600",
+            "starts_at": "Friday 2026-11-13 16:00"
           }
         ],
         "instruction": "Offer two or three of these times. Book the one the candidate picks."
       },
-      "at": "2026-11-10T13:55:39.167808Z"
+      "at": "2026-11-10T14:49:30.992755Z"
     },
     {
       "name": "search_job_info",
@@ -419,33 +417,33 @@
         "found": false,
         "instruction": "The job information has no answer. Say that you do not have that detail and that the recruiter will answer it. Do not guess. Then continue."
       },
-      "at": "2026-11-10T13:55:46.942599Z"
+      "at": "2026-11-10T14:49:40.835730Z"
     },
     {
       "name": "book_interview",
       "arguments": {
-        "slot_id": "20261112-1230"
+        "slot_id": "20261113-1000"
       },
       "result": {
         "ok": true,
-        "booking_id": "INT-797666",
+        "booking_id": "INT-129051",
         "stage": "booked"
       },
-      "at": "2026-11-10T13:55:54.127803Z"
+      "at": "2026-11-10T14:49:57.389821Z"
     }
   ],
   "validation_events": [],
   "summary": {
-    "headline": "Marta Diaz applied for the Warehouse Operator role and booked a video interview.",
+    "headline": "Marta Diaz completed the screening call and booked a video interview for the Warehouse Operator role.",
     "key_points": [
-      "She has a valid work permit and can commute to Getafe using her own transport.",
-      "She is available for rotating morning and afternoon shifts and can start immediately.",
-      "She split her supermarket team into pairs to unload late delivery trucks before opening.",
-      "She stopped work and reported a leaning pallet near an emergency exit.",
+      "She has a valid work permit for Spain and can start immediately.",
+      "She can work rotating morning and afternoon shifts and has her own transport.",
+      "She split her supermarket team into pairs to unload late delivery trucks.",
+      "She stopped work and reported a heavy pallet leaning near an emergency exit.",
       "She asked if she is allowed to bring her dog to work."
     ],
     "candidate_sentiment": "positive",
-    "next_action": "Conduct the video interview on November 12th at 12:30 PM and answer her question about the dog policy.",
+    "next_action": "Conduct the video interview on November 13th at 10:00 AM and clarify if dogs are allowed at work.",
     "generated_by": "gemini-3.5-flash"
   }
 }

@@ -19,10 +19,10 @@ Turning speech into a scorecard takes these jobs:
 
 | Job | Who does it |
 |---|---|
-| Hear: speech → text | Google Speech-to-Text (STT) |
+| Hear: speech → text | Google Speech-to-Text or Deepgram (STT), chosen with `STT_PROVIDER` |
 | Think: decide what to say and what to save | Gemini (the LLM), with **our Python code** checking everything |
 | Look up job facts | Vertex AI embeddings, ranked in memory by our code |
-| Speak: text → speech | Google Text-to-Speech (TTS) |
+| Speak: text → speech | Google Text-to-Speech or ElevenLabs (TTS), chosen with `TTS_PROVIDER` |
 
 Something must also move audio between the browser and Python in real time, and pass data
 between these services in the right order. **That is Pipecat's job.**
@@ -258,7 +258,7 @@ If no time is free, the tool returns an error, and Ava escalates the call so tha
 
 Ava speaks English or Spanish. The conversation starts in one language (`--language es`,
 `DEFAULT_LANGUAGE`, or `{"language": "es"}` from a custom client). In a voice call, the candidate can change it
-at any time: one Chirp 3 recognizer listens for both languages, and a `LanguageSwitcher` processor after STT
+at any time: one recognizer (Google Chirp 3 or Deepgram Nova-3) listens for both languages, and a `LanguageSwitcher` processor after STT
 follows the detected language. The language selects:
 
 - a **voice profile**: TTS voice and phrase hints;
@@ -362,7 +362,9 @@ screening-agent/
 │   │   ├── inbound/             How candidates and operators reach the app
 │   │   │   ├── cli.py           The commands: chat | voice | simulate
 │   │   │   ├── voice.py         The Pipecat pipeline
+│   │   │   ├── speech.py        One builder per STT and TTS provider
 │   │   │   └── simulate.py      Simulated candidates (Gemini plays them) + an LLM judge
+│   │   ├── constants.py         Fixed protocol strings (Pipecat roles, message types)
 │   │   └── outbound/            How the app reaches the outside world
 │   │       ├── gemini.py        Vertex AI client + chat, summary and sentiment adapters
 │   │       ├── embeddings_knowledge.py  Job search with Vertex AI embeddings
@@ -371,16 +373,17 @@ screening-agent/
 │   │       └── json_store.py    Writes conversation files safely
 │   │
 │   ├── bootstrap.py             Connects the adapters to the ports
-│   └── config.py                Reads settings from .env
+│   └── config.py                Loads config/settings.toml, then the .env overrides
 │
-├── tests/                       183 tests, no internet needed. Same folders as the code
+├── tests/                       222 tests, no internet needed. Same folders as the code
 │   ├── domain/  application/  adapters/
 │   └── test_architecture.py     Checks that every import points inward
+├── config/settings.toml         Every default: models, voices, timeouts, thresholds
 ├── data/job.json                The role: required shifts, start limit, experience questions
 ├── data/job_knowledge.json      Job information for the job search (14 pieces)
 ├── docs/                        This guide
 ├── conversations/               Your real call records (not in Git)
-├── .env                         Your settings (project ID). Not in Git
+├── .env                         Secrets and your overrides (project ID, API keys). Not in Git
 └── README.md                    Setup, architecture, design decisions
 ```
 
@@ -407,6 +410,7 @@ So it receives a plain function, `candidate_words() -> list[str]` (the type `Can
 | Save conversations in a database | A new `ConversationStore` adapter + one line in `bootstrap.py` |
 | Use Google Calendar for interviews | A new `InterviewCalendar` adapter + one line in `bootstrap.py` |
 | Move the job search to a vector store | A new `JobKnowledge` adapter + one line in `bootstrap.py` |
+| Add a speech provider (as Deepgram and ElevenLabs were added) | A builder in `adapters/inbound/speech.py` + a section in `config/settings.toml` |
 | Add a phone channel (Twilio) | A new inbound adapter |
 | Change a business rule | `domain/` only, plus its tests |
 
