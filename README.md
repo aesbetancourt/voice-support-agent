@@ -151,6 +151,13 @@ The code follows **hexagonal architecture (ports and adapters)**. Dependencies p
 adapters depend on the application, the application depends on the domain, and the domain
 depends on nothing in the project. `tests/test_architecture.py` enforces this rule.
 
+![Architecture: inbound adapters, application core with ports and domain, outbound adapters, speech providers and Vertex AI](docs/diagrams/architecture.png)
+
+> **Interactive version:** [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html), one standalone page
+> with animated data flow, search, focus on a component, a dark theme, and PNG/SVG export. Each component links
+> to the source lines it comes from. The source of the diagram is
+> [`docs/diagrams/architecture.json`](docs/diagrams/architecture.json), rendered with Archify.
+
 ```mermaid
 flowchart LR
     subgraph IN[Inbound adapters]
@@ -270,5 +277,8 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 - The browser client is Pipecat's generic prebuilt UI. It shows a camera button that this audio-only
   agent does not use.
 - Each job question adds one tool round trip (about 0.5 to 1.5 s) in a voice call.
+- The domain checks every must-have answer, but it cannot prove that Ava asked the question. "Ask about
+  all four requirements, and never assume an answer" is a prompt rule, and the LLM judge checks it in
+  the simulator. In one run before that rule, Gemini saved a work permit that the candidate never stated.
 - Gemini rates the experience answers. The domain bounds the scores (follow-ups, the quote check, the
   cap for vague answers), but the rating itself is a model judgment, not a fixed rule.

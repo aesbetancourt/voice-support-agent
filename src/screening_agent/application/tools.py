@@ -59,7 +59,9 @@ TOOL_SPECS: list[ToolSpec] = [
         name="record_must_have",
         description=(
             "Save the candidate's answer to one requirement, as soon as they give it. "
-            "The system decides if it meets the requirement."
+            "Call it only after you asked about this requirement and the candidate answered it "
+            "in their own words. Never assume an answer. The system decides if it meets the "
+            "requirement."
         ),
         properties={
             "requirement": {"type": "string", "enum": [r.value for r in Requirement]},
@@ -68,9 +70,8 @@ TOOL_SPECS: list[ToolSpec] = [
                 "description": (
                     "work_permit and commute: 'yes' or 'no'. shifts: exactly the shifts the "
                     "candidate named, from morning, afternoon and night; 'any' only if they "
-                    "said any shift. start_date: as YYYY-MM-DD. If the candidate names a day "
-                    "('next Monday'), use that date, even if they also say 'immediately'. Use "
-                    "'immediately' only when they name no day."
+                    "said any shift. start_date: the earliest start the candidate gives, as "
+                    "YYYY-MM-DD, or 'immediately' when that earliest start is now."
                 ),
             },
             "confirmed": {

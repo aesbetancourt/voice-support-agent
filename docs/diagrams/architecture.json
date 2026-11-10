@@ -2,17 +2,23 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Acme Store Support Agent — Hexagonal Architecture",
+    "title": "Harbor Logistics Screening Agent — Hexagonal Architecture",
     "locale": "en",
     "output": "docs/diagrams/architecture.html",
-    "quality_profile": "showcase"
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/aesbetancourt/voice-support-agent.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "d665fcc39d1802c0d26d4c7467e480f77db00b07"
+    }
   },
   "components": [
     {
-      "id": "customer",
+      "id": "candidate",
       "type": "external",
-      "label": "Customer",
-      "sublabel": "speaks to Ava",
+      "label": "Candidate",
+      "sublabel": "talks to Ava",
       "pos": [
         40,
         40
@@ -34,6 +40,14 @@
       "size": [
         150,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/adapters/inbound/voice.py",
+          "line": 1,
+          "end_line": 8,
+          "label": "served by the Pipecat runner"
+        }
       ]
     },
     {
@@ -53,29 +67,36 @@
     {
       "id": "speech",
       "type": "cloud",
-      "label": "Google STT · TTS",
-      "sublabel": "per-language profile",
+      "label": "STT · TTS providers",
+      "sublabel": "Google · Deepgram · ElevenLabs",
       "pos": [
-        260,
+        290,
         40
       ],
       "size": [
-        170,
+        190,
         64
-      ]
-    },
-    {
-      "id": "vertex",
-      "type": "cloud",
-      "label": "Vertex AI Gemini",
-      "sublabel": "3.5 Flash · 3.5 Flash-Lite",
-      "pos": [
-        1300,
-        40
       ],
-      "size": [
-        170,
-        64
+      "tag": "STT_PROVIDER · TTS_PROVIDER",
+      "sources": [
+        {
+          "path": "src/screening_agent/adapters/inbound/speech.py",
+          "line": 80,
+          "end_line": 81,
+          "label": "build_stt"
+        },
+        {
+          "path": "src/screening_agent/adapters/inbound/speech.py",
+          "line": 139,
+          "end_line": 140,
+          "label": "build_tts"
+        },
+        {
+          "path": "config/settings.toml",
+          "line": 55,
+          "end_line": 96,
+          "label": "speech settings"
+        }
       ]
     },
     {
@@ -84,12 +105,32 @@
       "label": "Voice adapter",
       "sublabel": "Pipecat pipeline · voice.py",
       "pos": [
-        260,
+        290,
         180
       ],
       "size": [
-        170,
+        190,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/adapters/inbound/voice.py",
+          "line": 265,
+          "end_line": 408,
+          "label": "run_bot"
+        },
+        {
+          "path": "src/screening_agent/adapters/inbound/voice.py",
+          "line": 116,
+          "end_line": 137,
+          "label": "make_tool_handler"
+        },
+        {
+          "path": "src/screening_agent/adapters/inbound/voice.py",
+          "line": 179,
+          "end_line": 206,
+          "label": "LanguageSwitcher"
+        }
       ]
     },
     {
@@ -98,26 +139,60 @@
       "label": "CLI",
       "sublabel": "chat · voice · simulate",
       "pos": [
-        260,
+        290,
         420
       ],
       "size": [
-        170,
+        190,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/adapters/inbound/cli.py",
+          "line": 118,
+          "end_line": 172,
+          "label": "main"
+        },
+        {
+          "path": "src/screening_agent/adapters/inbound/cli.py",
+          "line": 32,
+          "end_line": 63,
+          "label": "run_chat"
+        }
       ]
     },
     {
       "id": "simulator",
       "type": "backend",
       "label": "Simulator",
-      "sublabel": "7 Gemini personas",
+      "sublabel": "8 personas · LLM judge",
       "pos": [
-        260,
+        290,
         540
       ],
       "size": [
-        170,
+        190,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/adapters/inbound/simulate.py",
+          "line": 86,
+          "end_line": 149,
+          "label": "PERSONAS"
+        },
+        {
+          "path": "src/screening_agent/adapters/inbound/simulate.py",
+          "line": 215,
+          "end_line": 235,
+          "label": "judge"
+        },
+        {
+          "path": "src/screening_agent/adapters/inbound/simulate.py",
+          "line": 238,
+          "end_line": 274,
+          "label": "run_persona"
+        }
       ]
     },
     {
@@ -126,12 +201,61 @@
       "label": "bootstrap.py",
       "sublabel": "composition root",
       "pos": [
-        260,
+        290,
         660
       ],
       "size": [
-        170,
+        190,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/bootstrap.py",
+          "line": 96,
+          "end_line": 124,
+          "label": "new_conversation"
+        },
+        {
+          "path": "src/screening_agent/bootstrap.py",
+          "line": 76,
+          "end_line": 84,
+          "label": "job_knowledge"
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "type": "backend",
+      "label": "Settings",
+      "sublabel": "settings.toml + .env",
+      "pos": [
+        290,
+        780
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "tag": "config.py",
+      "sources": [
+        {
+          "path": "src/screening_agent/config.py",
+          "line": 184,
+          "end_line": 245,
+          "label": "Settings.load"
+        },
+        {
+          "path": "src/screening_agent/config.py",
+          "line": 27,
+          "end_line": 49,
+          "label": "ENV_OVERRIDES"
+        },
+        {
+          "path": "config/settings.toml",
+          "line": 1,
+          "end_line": 14,
+          "label": "defaults"
+        }
       ]
     },
     {
@@ -139,14 +263,34 @@
       "type": "backend",
       "label": "Conversation core",
       "sublabel": "tools · recorder · sentiment",
-      "tag": "ToolExecutor",
       "pos": [
-        520,
+        570,
         180
       ],
       "size": [
-        180,
+        190,
         184
+      ],
+      "tag": "ToolExecutor",
+      "sources": [
+        {
+          "path": "src/screening_agent/application/tools.py",
+          "line": 175,
+          "end_line": 277,
+          "label": "ToolExecutor"
+        },
+        {
+          "path": "src/screening_agent/application/recorder.py",
+          "line": 34,
+          "end_line": 120,
+          "label": "ConversationRecorder"
+        },
+        {
+          "path": "src/screening_agent/application/sentiment.py",
+          "line": 37,
+          "end_line": 70,
+          "label": "SentimentMonitor"
+        }
       ]
     },
     {
@@ -155,55 +299,111 @@
       "label": "TextAgent loop",
       "sublabel": "text and simulations",
       "pos": [
-        520,
+        570,
         420
       ],
       "size": [
-        180,
+        190,
         64
-      ]
-    },
-    {
-      "id": "ports",
-      "type": "backend",
-      "label": "Ports",
-      "sublabel": "5 protocols",
-      "tag": "interfaces",
-      "pos": [
-        780,
-        420
       ],
-      "size": [
-        180,
-        284
+      "sources": [
+        {
+          "path": "src/screening_agent/application/agent.py",
+          "line": 31,
+          "end_line": 80,
+          "label": "TextAgent"
+        }
       ]
     },
     {
       "id": "session",
       "type": "backend",
-      "label": "TicketSession",
-      "sublabel": "state machine · validators",
+      "label": "ScreeningSession",
+      "sublabel": "state machine · quote check",
       "pos": [
-        780,
+        850,
         180
       ],
       "size": [
-        180,
+        190,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/domain/state.py",
+          "line": 78,
+          "end_line": 384,
+          "label": "ScreeningSession"
+        },
+        {
+          "path": "src/screening_agent/domain/state.py",
+          "line": 64,
+          "end_line": 75,
+          "label": "recommend"
+        },
+        {
+          "path": "src/screening_agent/domain/validators.py",
+          "line": 154,
+          "end_line": 174,
+          "label": "quote_in_words"
+        }
       ]
     },
     {
       "id": "frustration",
       "type": "backend",
       "label": "FrustrationPolicy",
-      "sublabel": "acknowledge / offer human",
+      "sublabel": "acknowledge / offer recruiter",
       "pos": [
-        780,
+        850,
         300
       ],
       "size": [
-        180,
+        190,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/domain/frustration.py",
+          "line": 23,
+          "end_line": 43,
+          "label": "FrustrationPolicy"
+        }
+      ]
+    },
+    {
+      "id": "ports",
+      "type": "backend",
+      "label": "Ports",
+      "sublabel": "6 protocols",
+      "pos": [
+        850,
+        420
+      ],
+      "size": [
+        190,
+        364
+      ],
+      "tag": "interfaces",
+      "sources": [
+        {
+          "path": "src/screening_agent/application/ports.py",
+          "line": 30,
+          "end_line": 35,
+          "label": "JobKnowledge"
+        },
+        {
+          "path": "src/screening_agent/application/ports.py",
+          "line": 38,
+          "end_line": 53,
+          "label": "InterviewCalendar, ConversationStore"
+        },
+        {
+          "path": "src/screening_agent/application/ports.py",
+          "line": 85,
+          "end_line": 94,
+          "label": "ChatModel"
+        }
       ]
     },
     {
@@ -212,26 +412,82 @@
       "label": "Gemini adapter",
       "sublabel": "chat · summary · sentiment",
       "pos": [
-        1050,
+        1150,
         420
       ],
       "size": [
-        180,
+        190,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/adapters/outbound/gemini.py",
+          "line": 104,
+          "end_line": 193,
+          "label": "GeminiChatModel"
+        },
+        {
+          "path": "src/screening_agent/adapters/outbound/gemini.py",
+          "line": 196,
+          "end_line": 218,
+          "label": "GeminiSummarizer"
+        },
+        {
+          "path": "src/screening_agent/adapters/outbound/gemini.py",
+          "line": 88,
+          "end_line": 101,
+          "label": "make_client"
+        }
       ]
     },
     {
-      "id": "orders_repo",
+      "id": "knowledge",
       "type": "backend",
-      "label": "JsonOrderRepository",
-      "sublabel": "read-only lookup",
+      "label": "Job knowledge (RAG)",
+      "sublabel": "embeddings · cosine in memory",
       "pos": [
-        1050,
+        1150,
         530
       ],
       "size": [
-        180,
+        190,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/adapters/outbound/embeddings_knowledge.py",
+          "line": 56,
+          "end_line": 101,
+          "label": "GeminiJobKnowledge"
+        },
+        {
+          "path": "src/screening_agent/adapters/outbound/embeddings_knowledge.py",
+          "line": 40,
+          "end_line": 53,
+          "label": "rank"
+        }
+      ]
+    },
+    {
+      "id": "calendar",
+      "type": "backend",
+      "label": "MockInterviewCalendar",
+      "sublabel": "free slots on working days",
+      "pos": [
+        1150,
+        640
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/adapters/outbound/mock_calendar.py",
+          "line": 19,
+          "end_line": 50,
+          "label": "MockInterviewCalendar"
+        }
       ]
     },
     {
@@ -240,52 +496,108 @@
       "label": "JsonConversationStore",
       "sublabel": "atomic writes",
       "pos": [
-        1050,
-        640
+        1150,
+        750
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/adapters/outbound/json_store.py",
+          "line": 12,
+          "end_line": 32,
+          "label": "JsonConversationStore"
+        }
+      ]
+    },
+    {
+      "id": "vertex",
+      "type": "cloud",
+      "label": "Vertex AI",
+      "sublabel": "Gemini 3.5 Flash · embeddings",
+      "pos": [
+        850,
+        40
       ],
       "size": [
         180,
         64
+      ],
+      "sources": [
+        {
+          "path": "config/settings.toml",
+          "line": 15,
+          "end_line": 41,
+          "label": "gemini, embeddings"
+        },
+        {
+          "path": "src/screening_agent/adapters/outbound/gemini.py",
+          "line": 88,
+          "end_line": 101,
+          "label": "make_client"
+        }
       ]
     },
     {
-      "id": "orders_file",
+      "id": "jobdata",
       "type": "database",
-      "label": "orders.json",
-      "sublabel": "10 mock orders",
+      "label": "data/job*.json",
+      "sublabel": "role · job information",
       "pos": [
-        1300,
+        1450,
         530
       ],
       "size": [
-        170,
+        180,
         64
+      ],
+      "sources": [
+        {
+          "path": "data/job.json",
+          "line": 1,
+          "end_line": 21,
+          "label": "role and questions"
+        },
+        {
+          "path": "data/job_knowledge.json",
+          "line": 1,
+          "end_line": 16,
+          "label": "job information"
+        }
       ]
     },
     {
       "id": "records",
       "type": "database",
       "label": "conversations/*.json",
-      "sublabel": "transcript · ticket · summary",
+      "sublabel": "transcript · scorecard · summary",
       "pos": [
-        1300,
-        640
+        1450,
+        750
       ],
       "size": [
-        170,
+        190,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/screening_agent/application/recorder.py",
+          "line": 34,
+          "end_line": 120,
+          "label": "build_record"
+        },
+        {
+          "path": "src/screening_agent/adapters/outbound/json_store.py",
+          "line": 12,
+          "end_line": 32,
+          "label": "save"
+        }
       ]
     }
   ],
   "boundaries": [
-    {
-      "kind": "region",
-      "label": "Google Cloud",
-      "wraps": [
-        "speech",
-        "vertex"
-      ]
-    },
     {
       "kind": "region",
       "label": "Inbound adapters",
@@ -321,15 +633,16 @@
       "label": "Outbound adapters",
       "wraps": [
         "gemini",
-        "orders_repo",
+        "knowledge",
+        "calendar",
         "store"
       ]
     }
   ],
   "connections": [
     {
-      "id": "customer-speaks",
-      "from": "customer",
+      "id": "candidate-speaks",
+      "from": "candidate",
       "to": "browser",
       "label": "speaks",
       "variant": "emphasis"
@@ -345,13 +658,7 @@
       "id": "voice-speech",
       "from": "voice",
       "to": "speech",
-      "label": "audio"
-    },
-    {
-      "id": "voice-llm",
-      "from": "voice",
-      "to": "vertex",
-      "label": "Gemini via Pipecat"
+      "label": "audio · text"
     },
     {
       "id": "voice-core",
@@ -359,6 +666,12 @@
       "to": "core",
       "label": "tool calls",
       "variant": "emphasis"
+    },
+    {
+      "id": "voice-llm",
+      "from": "voice",
+      "to": "vertex",
+      "label": "Gemini via Pipecat"
     },
     {
       "id": "operator-cli",
@@ -407,7 +720,7 @@
       "id": "agent-ports",
       "from": "agent",
       "to": "ports",
-      "label": "uses"
+      "label": "ChatModel"
     },
     {
       "id": "core-ports",
@@ -422,8 +735,14 @@
       "label": "implements"
     },
     {
-      "id": "orders-implements",
-      "from": "orders_repo",
+      "id": "knowledge-implements",
+      "from": "knowledge",
+      "to": "ports",
+      "label": "implements"
+    },
+    {
+      "id": "calendar-implements",
+      "from": "calendar",
       "to": "ports",
       "label": "implements"
     },
@@ -440,9 +759,15 @@
       "label": "Gen AI SDK"
     },
     {
-      "id": "orders-read",
-      "from": "orders_repo",
-      "to": "orders_file",
+      "id": "knowledge-embed",
+      "from": "knowledge",
+      "to": "vertex",
+      "label": "embed"
+    },
+    {
+      "id": "knowledge-read",
+      "from": "knowledge",
+      "to": "jobdata",
       "label": "reads"
     },
     {
@@ -456,6 +781,12 @@
       "from": "bootstrap",
       "to": "ports",
       "label": "wires adapters"
+    },
+    {
+      "id": "settings-bootstrap",
+      "from": "settings",
+      "to": "bootstrap",
+      "label": "defaults + .env"
     }
   ],
   "cards": [
@@ -464,7 +795,7 @@
       "title": "Hexagonal rule",
       "items": [
         "Dependencies point inward: adapters → application → domain",
-        "The domain imports nothing from the project",
+        "The domain and application never import config",
         "tests/test_architecture.py enforces the direction"
       ]
     },
@@ -472,27 +803,27 @@
       "dot": "emerald",
       "title": "Rules in code",
       "items": [
-        "Gemini changes the ticket only through 6 tools",
-        "TicketSession validates values and owns the stage",
-        "Closing messages and ticket IDs are fixed text"
+        "Gemini proposes values only through 8 tools",
+        "ScreeningSession checks must-haves, follow-ups and evidence quotes",
+        "The code calculates the recommendation; a person decides"
       ]
     },
     {
       "dot": "cyan",
       "title": "Voice path",
       "items": [
-        "Pipecat runs STT → Gemini → TTS in one Python process",
-        "Its Google services call Cloud directly, not through the ports",
-        "Tool calls and turns still reach the same core"
+        "STT_PROVIDER and TTS_PROVIDER choose the speech services",
+        "Pipecat's services call their providers directly, not through the ports",
+        "Tool calls still reach the same core as text and simulations"
       ]
     },
     {
       "dot": "amber",
-      "title": "Languages and sentiment",
+      "title": "Job questions (RAG)",
       "items": [
-        "English or Spanish, switched live in voice calls",
-        "Chirp 3 detects the language per utterance",
-        "Flash-Lite rates frustration in the background"
+        "Job information is embedded once per process",
+        "Below the 0.68 match score, the question goes to the recruiter",
+        "A failed search never breaks the call"
       ]
     }
   ]

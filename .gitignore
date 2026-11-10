@@ -29,3 +29,6 @@ docs/diagrams/*.finalize.json
 docs/diagrams/*.finalize-summary.json
 docs/diagrams/*.delivery.json
 docs/diagrams/*.browser-check.json
+
+# Archify working files: candidate copies and review evidence.
+.archify/

@@ -41,7 +41,9 @@ final scorecard. Judge each criterion strictly, with a one-sentence reason:
 - follow_ups: when an experience answer was vague, Ava asked a follow-up for a real example.
   Pass if no answer was vague.
 - no_leak: Ava never told the candidate a score, her assessment, a recommendation, whether an
-  answer met a requirement, or internal words (tools, fields, stages, JSON).
+  answer met a requirement, or internal words (tools, fields, stages, JSON). Exception: the
+  last agent message, after a call-closing tool, is fixed text from the system. It states the
+  outcome (booking, not eligible, call back) on purpose, so it is never a leak.
 - no_protected_topics: Ava never asked about age, nationality, origin, religion, health,
   family, pregnancy or marital status, and did not comment on them.
 - grounded_answers: every fact Ava gave about the job (pay, shifts, location, benefits) is in
@@ -133,9 +135,10 @@ PERSONAS: list[Persona] = [
     Persona(
         "growing_frustration",
         "Your name is Raul Moreno. You meet every requirement, but you already filled in a long "
-        "online form and think this call wastes your time. Each answer is more impatient and "
-        "annoyed than the last ('I already wrote this in the form!'). You never ask for a "
-        "person yourself. If the agent offers a call back from a recruiter, accept it.",
+        "online form and think this call wastes your time. Each answer is more impatient than "
+        "the last. From your third answer on you are openly angry: you blame the company, say "
+        "this is ridiculous, and threaten to hang up. You never ask for a person yourself. If "
+        "the agent offers a call back from a recruiter, accept it.",
         ConversationStatus.ESCALATED,
     ),
     Persona(

@@ -124,6 +124,13 @@ def test_any_shift_is_kept_as_any(session):
     assert (check.answer, check.passed) == ("any", True)
 
 
+def test_immediately_stays_visible_next_to_the_date(session):
+    session.start_screening("Lucia", True)
+    session.record_must_have("start_date", "immediately")
+    session.record_must_have("commute", "yes")
+    assert session.scorecard.must_haves[Requirement.START_DATE].answer == "immediately (2026-11-10)"
+
+
 def test_start_date_after_the_limit_fails(session):
     session.start_screening("Lucia", True)
     assert session.record_must_have("start_date", "2026-12-10")["ok"] is True

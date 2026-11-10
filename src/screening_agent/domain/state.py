@@ -57,6 +57,14 @@ ADVANCE_MIN_SCORE = 2
 CandidateWords = Callable[[], list[str]]
 
 
+def _is_iso_date(text: str) -> bool:
+    try:
+        date.fromisoformat(text.strip())
+    except ValueError:
+        return False
+    return True
+
+
 class SessionClosedError(RuntimeError):
     """Raised when a tool is called after the conversation has closed."""
 
@@ -188,7 +196,10 @@ class ScreeningSession:
                 return canonical, set(self.job.required_shifts) <= shifts
             case Requirement.START_DATE:
                 start = parse_start_date(str(answer), self.today)
-                return start.isoformat(), start <= self.latest_start
+                # Keep the candidate's "immediately" visible next to the date it stands for.
+                said_now = start == self.today and not _is_iso_date(str(answer))
+                canonical = f"immediately ({start.isoformat()})" if said_now else start.isoformat()
+                return canonical, start <= self.latest_start
 
     def _after_must_have(self) -> dict[str, Any]:
         checks = self.scorecard.must_haves
