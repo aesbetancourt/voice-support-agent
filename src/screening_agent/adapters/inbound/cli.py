@@ -11,6 +11,7 @@ from google.auth.exceptions import GoogleAuthError
 from google.genai import errors as genai_errors
 from loguru import logger
 
+from screening_agent.adapters.constants import WEBRTC_TRANSPORT
 from screening_agent.adapters.inbound.simulate import PERSONAS, run_persona
 from screening_agent.adapters.outbound.gemini import make_client
 from screening_agent.application.messages import technical_error_message
@@ -24,8 +25,6 @@ from screening_agent.config import ConfigError, Settings
 from screening_agent.domain.models import ConversationRecord, Language
 from screening_agent.domain.validators import parse_language
 
-# A long answer fits easily; a pasted document does not reach the model.
-MAX_INPUT_CHARS = 2000
 VOICE_MODULE = "screening_agent.adapters.inbound.voice"
 _QUIT_COMMANDS = {"/quit", "/exit"}
 
@@ -53,7 +52,7 @@ async def run_chat(settings: Settings) -> None:
                 continue
             if user_text.lower() in _QUIT_COMMANDS:
                 break
-            reply = await agent.respond(user_text[:MAX_INPUT_CHARS])
+            reply = await agent.respond(user_text[: settings.cli.max_input_chars])
             print(f"\nagent> {reply.text}\n")
     except genai_errors.APIError as exc:
         logger.error(f"Gemini API error: {exc}")
@@ -112,7 +111,7 @@ def _run_voice(extra_args: list[str]) -> None:
     # The Pipecat runner finds the bot through the __main__ module,
     # so start the bot module as the main program. Only the WebRTC transport is used.
     if not {"-t", "--transport"} & set(extra_args):
-        extra_args = ["-t", "webrtc", *extra_args]
+        extra_args = ["-t", WEBRTC_TRANSPORT, *extra_args]
     os.execv(sys.executable, [sys.executable, "-m", VOICE_MODULE, *extra_args])
 
 
@@ -126,8 +125,9 @@ def main(argv: list[str] | None = None) -> None:
     )
     simulate = commands.add_parser("simulate", help="Run simulated candidates against the agent.")
     simulate.add_argument("--persona", default="all", help="Persona name, or 'all'.")
-    # A long enough limit for every persona; it stops a simulation that never ends.
-    simulate.add_argument("--max-turns", type=int, default=24)
+    simulate.add_argument(
+        "--max-turns", type=int, help="Turn limit per persona. Default: simulate_max_turns."
+    )
     simulate.add_argument(
         "--no-judge", action="store_true", help="Check the final status only, without the judge."
     )
@@ -155,8 +155,9 @@ def main(argv: list[str] | None = None) -> None:
         if args.command == "chat":
             asyncio.run(run_chat(settings))
         else:
+            max_turns = args.max_turns or settings.cli.simulate_max_turns
             exit_code = asyncio.run(
-                run_simulations(settings, args.persona, args.max_turns, not args.no_judge)
+                run_simulations(settings, args.persona, max_turns, not args.no_judge)
             )
             sys.exit(exit_code)
     except ConfigError as exc:

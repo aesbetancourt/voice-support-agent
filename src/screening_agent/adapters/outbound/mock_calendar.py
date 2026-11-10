@@ -6,18 +6,25 @@ Bookings stay in memory for the life of the process.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import date, datetime, time, timedelta
 
 from screening_agent.domain.models import InterviewSlot
 
-# The warehouse manager interviews between the morning and afternoon peaks.
-INTERVIEW_TIMES = (time(10, 0), time(12, 30), time(16, 0))
-WORKING_DAYS_AHEAD = 3
+# Monday is 0: days from Saturday (5) on are weekend days, with no interviews.
+_FIRST_WEEKEND_DAY = 5
+_SLOT_ID_FORMAT = "%Y%m%d-%H%M"
 
 
 class MockInterviewCalendar:
-    def __init__(self, today: Callable[[], date] = date.today) -> None:
+    def __init__(
+        self,
+        interview_times: Sequence[time],
+        working_days_ahead: int,
+        today: Callable[[], date] = date.today,
+    ) -> None:
+        self._interview_times = tuple(interview_times)
+        self._working_days_ahead = working_days_ahead
         self._today = today
         self._booked: set[str] = set()
 
@@ -31,11 +38,13 @@ class MockInterviewCalendar:
     def _all_slots(self) -> list[InterviewSlot]:
         slots: list[InterviewSlot] = []
         day = self._today()
-        while len({slot.starts_at.date() for slot in slots}) < WORKING_DAYS_AHEAD:
+        while len({slot.starts_at.date() for slot in slots}) < self._working_days_ahead:
             day += timedelta(days=1)
-            if day.weekday() >= 5:  # No interviews on weekends.
+            if day.weekday() >= _FIRST_WEEKEND_DAY:
                 continue
-            for at in INTERVIEW_TIMES:
+            for at in self._interview_times:
                 starts_at = datetime.combine(day, at)
-                slots.append(InterviewSlot(id=f"{starts_at:%Y%m%d-%H%M}", starts_at=starts_at))
+                slots.append(
+                    InterviewSlot(id=starts_at.strftime(_SLOT_ID_FORMAT), starts_at=starts_at)
+                )
         return slots

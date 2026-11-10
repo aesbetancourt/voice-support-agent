@@ -1,1 +1,1 @@
-"""Voice customer-support agent for the fictional Acme Store."""
+"""Voice recruiting agent that runs candidate screening calls for the fictional Harbor Logistics."""

@@ -206,7 +206,7 @@ A person makes the hiring decision.
 2. `ToolExecutor` calls the `JobKnowledge` port: `search(question, limit=3)`, with a 4-second timeout.
 3. The adapter, `GeminiJobKnowledge`, embeds the question with `gemini-embedding-001` (task type `RETRIEVAL_QUERY`).
 4. It compares the question vector with each piece of [`data/job_knowledge.json`](../data/job_knowledge.json) by cosine similarity, in memory.
-5. It keeps the best 3 pieces with a score of 0.68 or more (`MIN_SCORE`).
+5. It keeps the best 3 pieces with a score of 0.68 or more (`[embeddings] min_score` in `config/settings.toml`).
 6. The tool returns `{ok: true, found: true, information: ["Pay: 1,580 euros gross per month, ..."], instruction: "Answer only from this information..."}`.
 7. Ava answers in one or two sentences, then continues the screening where she stopped.
 

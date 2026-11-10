@@ -1,7 +1,7 @@
 [project]
 name = "screening-agent"
 version = "0.1.0"
-description = "Voice customer-support agent: Pipecat + Google Cloud STT/TTS + Gemini on Vertex AI"
+description = "Voice recruiting agent for candidate screening calls: Pipecat, Gemini on Vertex AI, Google or Deepgram STT, Google or ElevenLabs TTS"
 readme = "README.md"
 authors = [
     { name = "Alejandro Sanchez", email = "aesbetancourt@outlook.com" }
@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "google-genai>=2.34.0",
     "loguru>=0.7.3",
-    "pipecat-ai[google,runner,silero,webrtc]>=1.15.0",
+    "pipecat-ai[deepgram,elevenlabs,google,runner,silero,webrtc]>=1.15.0",
     "pydantic>=2.14.2",
     "python-dotenv>=1.2.4",
 ]

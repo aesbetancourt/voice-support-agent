@@ -3,11 +3,30 @@ from pathlib import Path
 
 import pytest
 
+from screening_agent.adapters.outbound.mock_calendar import MockInterviewCalendar
+from screening_agent.config import Settings
 from screening_agent.domain.models import JobPosting
 from screening_agent.domain.state import ScreeningSession
 
 DATA = Path(__file__).resolve().parents[1] / "data"
 TODAY = date(2026, 11, 10)
+
+
+def test_settings(**env: str) -> Settings:
+    """The real config/settings.toml with only these overrides: .env is never read."""
+    return Settings.load(environ={"GOOGLE_CLOUD_PROJECT": "test-project", **env})
+
+
+def make_calendar(today: date = TODAY) -> MockInterviewCalendar:
+    calendar = test_settings().calendar
+    return MockInterviewCalendar(
+        calendar.interview_times, calendar.working_days_ahead, today=lambda: today
+    )
+
+
+@pytest.fixture
+def settings() -> Settings:
+    return test_settings()
 
 
 @pytest.fixture
@@ -62,10 +81,8 @@ def knowledge() -> FakeKnowledge:
 
 
 @pytest.fixture
-def calendar():
-    from screening_agent.adapters.outbound.mock_calendar import MockInterviewCalendar
-
-    return MockInterviewCalendar(today=lambda: TODAY)
+def calendar() -> MockInterviewCalendar:
+    return make_calendar()
 
 
 @pytest.fixture

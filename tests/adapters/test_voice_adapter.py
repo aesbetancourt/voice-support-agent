@@ -16,17 +16,14 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameDirection
 
 from screening_agent.adapters.inbound.voice import (
-    STT_LOCATION,
-    STT_MODEL,
-    VOICE_PROFILES,
     LanguageSwitcher,
     ThoughtTagFilter,
     build_tools_schema,
+    detected_language,
     language_switch_frames,
     make_guidance_sender,
     make_tool_handler,
     session_language,
-    stt_languages,
 )
 from screening_agent.application.prompts import agent_note
 from screening_agent.application.tools import TOOL_SPECS
@@ -141,15 +138,6 @@ async def test_a_failed_display_still_sends_the_guidance():
     assert len(queued) == 1
 
 
-@pytest.mark.parametrize("language", list(Language))
-def test_every_language_has_a_matching_voice_profile(language):
-    profile = VOICE_PROFILES[language]
-    # The TTS voice and the STT language must use the same locale, e.g. es-US.
-    assert profile.tts_voice.startswith(f"{profile.stt_language.value}-Chirp3-HD-")
-    assert profile.stt_language.value.startswith(language.value)
-    assert any(hint["value"] == "Harbor Logistics" for hint in profile.phrase_hints)
-
-
 @pytest.mark.parametrize(
     ("body", "expected"),
     [
@@ -165,21 +153,10 @@ def test_session_language_comes_from_the_client_body(body, expected):
     assert session_language(runner_args, default=Language.EN) is expected
 
 
-def test_stt_uses_chirp_3_in_a_regional_location():
-    assert (STT_MODEL, STT_LOCATION) == ("chirp_3", "us")
-
-
-@pytest.mark.parametrize("language", list(Language))
-def test_stt_listens_for_every_language_with_the_session_language_first(language):
-    languages = stt_languages(language)
-    assert languages[0] is VOICE_PROFILES[language].stt_language
-    assert set(languages) == {profile.stt_language for profile in VOICE_PROFILES.values()}
-
-
-def test_a_language_switch_changes_the_voice_and_tells_the_llm():
-    tts_update, note = language_switch_frames(Language.ES)
+def test_a_language_switch_changes_the_voice_and_tells_the_llm(settings):
+    tts_update, note = language_switch_frames(settings, Language.ES)
     assert isinstance(tts_update, TTSUpdateSettingsFrame)
-    assert tts_update.delta.voice == VOICE_PROFILES[Language.ES].tts_voice
+    assert tts_update.delta.voice == settings.tts.google.voices[Language.ES]
     assert isinstance(note, LLMMessagesAppendFrame)
     assert note.run_llm is False
     assert "speak only Spanish" in note.messages[0]["content"]
@@ -192,12 +169,14 @@ def transcription(text, language_code):
 
 
 async def run_switcher(frames):
+    from conftest import test_settings
+
     switches, pushed = [], []
 
     async def on_switch(language):
         switches.append(language)
 
-    switcher = LanguageSwitcher(Language.EN, on_switch)
+    switcher = LanguageSwitcher(test_settings(), Language.EN, on_switch)
 
     async def push_frame(frame, direction=FrameDirection.DOWNSTREAM):
         pushed.append(frame)
@@ -252,3 +231,22 @@ async def test_thought_filter_cleans_streamed_llm_text():
     spoken = "".join(f.text for f in pushed if isinstance(f, LLMTextFrame))
     assert spoken == "\nEntiendo. ¿Algo más?"
     assert isinstance(pushed[-1], LLMFullResponseEndFrame)
+
+
+def deepgram_transcription(text, language):
+    # Deepgram's raw result has no language_code; Pipecat puts the language on the frame.
+    return TranscriptionFrame(
+        text, "user", "2026-10-30T00:00:00Z", language, result=SimpleNamespace(channel=None)
+    )
+
+
+def test_detected_language_reads_google_and_deepgram_frames():
+    assert detected_language(transcription("Hola, tengo permiso", "es-US")) == "es-US"
+    assert detected_language(deepgram_transcription("Hola, tengo permiso", "es")) == "es"
+    assert detected_language(deepgram_transcription("Hello there friend", None)) is None
+
+
+async def test_switcher_follows_deepgram_language_detection():
+    words = deepgram_transcription("Sí, tengo permiso de trabajo en España", "es")
+    switcher, switches, _ = await run_switcher([words])
+    assert switches == [Language.ES]

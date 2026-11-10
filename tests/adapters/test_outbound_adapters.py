@@ -2,6 +2,8 @@
 
 from datetime import date
 
+from conftest import make_calendar
+
 from screening_agent.adapters.outbound.embeddings_knowledge import (
     GeminiJobKnowledge,
     KnowledgeChunk,
@@ -9,7 +11,6 @@ from screening_agent.adapters.outbound.embeddings_knowledge import (
     load_chunks,
     rank,
 )
-from screening_agent.adapters.outbound.mock_calendar import MockInterviewCalendar
 
 PAY = KnowledgeChunk("pay", "Pay: 1,580 euros gross per month.")
 SHIFTS = KnowledgeChunk("shifts", "Shifts rotate every week.")
@@ -67,7 +68,7 @@ async def test_search_builds_the_index_once():
 
 
 def test_calendar_offers_working_days_only_and_hides_booked_slots():
-    calendar = MockInterviewCalendar(today=lambda: date(2026, 11, 13))  # A Friday.
+    calendar = make_calendar(today=date(2026, 11, 13))  # A Friday.
     slots = calendar.free_slots(10)
     assert {slot.starts_at.weekday() for slot in slots} <= {0, 1, 2, 3, 4}
     assert slots[0].starts_at.date() == date(2026, 11, 16)  # The next Monday.

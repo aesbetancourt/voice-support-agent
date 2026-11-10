@@ -8,12 +8,13 @@ from typing import Any
 from google import genai
 from google.genai import types
 
+from screening_agent.adapters.constants import THOUGHT_CLOSE_TAG, THOUGHT_OPEN_TAG
 from screening_agent.application.ports import FunctionCall, ModelReply
 from screening_agent.application.prompts import agent_note
 from screening_agent.application.sentiment import SENTIMENT_INSTRUCTION
 from screening_agent.application.summary import SUMMARY_INSTRUCTION, summary_input
 from screening_agent.application.tools import TOOL_SPECS
-from screening_agent.config import AGENT_TEMPERATURE, Settings
+from screening_agent.config import Settings
 from screening_agent.domain.models import (
     ConversationRecord,
     SentimentDraft,
@@ -22,13 +23,8 @@ from screening_agent.domain.models import (
     Turn,
 )
 
-# Retry rate limits and server errors with exponential backoff.
-_RETRY = types.HttpRetryOptions(attempts=3, initial_delay=1.0, max_delay=8.0)
-# A model round takes about 1 s; 30 s stops a hung request without cutting a slow one.
-_TIMEOUT_MS = 30_000
-
-_OPEN_TAG = "<thought>"
-_CLOSE_TAG = "</thought>"
+_OPEN_TAG = THOUGHT_OPEN_TAG
+_CLOSE_TAG = THOUGHT_CLOSE_TAG
 
 
 class ThoughtTagStripper:
@@ -91,24 +87,32 @@ def strip_thought_tags(text: str) -> str:
 
 def make_client(settings: Settings, location: str | None = None) -> genai.Client:
     """Create a Vertex AI client. Auth uses Application Default Credentials."""
+    gemini = settings.gemini
+    retry = types.HttpRetryOptions(
+        attempts=gemini.retry_attempts,
+        initial_delay=gemini.retry_initial_delay_secs,
+        max_delay=gemini.retry_max_delay_secs,
+    )
     return genai.Client(
         vertexai=True,
         project=settings.require_project(),
-        location=location or settings.location,
-        http_options=types.HttpOptions(timeout=_TIMEOUT_MS, retry_options=_RETRY),
+        location=location or gemini.location,
+        http_options=types.HttpOptions(timeout=gemini.timeout_ms, retry_options=retry),
     )
 
 
 class GeminiChatModel:
     """``ChatModel`` port with manual function calling."""
 
-    def __init__(self, client: genai.Client, model: str, system_prompt: str) -> None:
+    def __init__(
+        self, client: genai.Client, model: str, system_prompt: str, temperature: float
+    ) -> None:
         self._client = client
         self._model = model
         self._history: list[types.Content] = []
         self._config = types.GenerateContentConfig(
             system_instruction=system_prompt,
-            temperature=AGENT_TEMPERATURE,
+            temperature=temperature,
             tools=[
                 types.Tool(
                     function_declarations=[
@@ -192,9 +196,10 @@ class GeminiChatModel:
 class GeminiSummarizer:
     """``Summarizer`` port with Gemini structured output."""
 
-    def __init__(self, client: genai.Client, model: str) -> None:
+    def __init__(self, client: genai.Client, model: str, temperature: float) -> None:
         self._client = client
         self._model = model
+        self._temperature = temperature
 
     async def summarize(self, record: ConversationRecord) -> Summary:
         response = await self._client.aio.models.generate_content(
@@ -204,7 +209,7 @@ class GeminiSummarizer:
                 system_instruction=SUMMARY_INSTRUCTION,
                 response_mime_type="application/json",
                 response_schema=SummaryDraft,
-                temperature=0.2,
+                temperature=self._temperature,
             ),
         )
         draft = response.parsed
@@ -216,9 +221,10 @@ class GeminiSummarizer:
 class GeminiSentimentAnalyzer:
     """``SentimentAnalyzer`` port with a small, fast Gemini model and structured output."""
 
-    def __init__(self, client: genai.Client, model: str) -> None:
+    def __init__(self, client: genai.Client, model: str, temperature: float) -> None:
         self._client = client
         self._model = model
+        self._temperature = temperature
 
     async def analyze(self, candidate_text: str, recent_turns: list[Turn]) -> SentimentDraft:
         context = "\n".join(f"{turn.role}: {turn.text}" for turn in recent_turns) or "(none)"
@@ -230,7 +236,7 @@ class GeminiSentimentAnalyzer:
                 system_instruction=SENTIMENT_INSTRUCTION,
                 response_mime_type="application/json",
                 response_schema=SentimentDraft,
-                temperature=0.0,
+                temperature=self._temperature,
             ),
         )
         draft = response.parsed

@@ -7,15 +7,15 @@ experience questions with follow-ups, answers the candidate's questions about th
 a video interview with the warehouse manager. The recruiter gets a scorecard with evidence quotes
 and a summary, saved as JSON.
 
-The whole stack runs on Google Cloud:
+The stack runs on Google Cloud, with Deepgram and ElevenLabs as options for speech:
 
 | Layer | Service |
 |---|---|
 | Transport | Pipecat SmallWebRTC (browser ↔ Python, peer-to-peer audio) |
-| Speech-to-text | Google Cloud Speech-to-Text `chirp_3` (streaming), detecting English or Spanish on each utterance |
+| Speech-to-text | Google Cloud Speech-to-Text `chirp_3`, or Deepgram `nova-3` (`STT_PROVIDER=deepgram`). Both detect English or Spanish on each utterance |
 | LLM | Gemini on Vertex AI (`gemini-3.5-flash` by default) |
 | Job knowledge (RAG) | Vertex AI embeddings (`gemini-embedding-001`), ranked in memory |
-| Text-to-speech | Google Cloud Text-to-Speech, Chirp 3 HD voices (`en-US`, `es-US`) |
+| Text-to-speech | Google Cloud Text-to-Speech, Chirp 3 HD voices (`en-US`, `es-US`), or ElevenLabs `eleven_flash_v2_5` with one multilingual voice (`TTS_PROVIDER=elevenlabs`) |
 | Framework | [Pipecat](https://github.com/pipecat-ai/pipecat) 1.15 |
 
 The same agent also runs as a text chat in the terminal, and against simulated candidates with an
@@ -125,8 +125,10 @@ uv sync
 cp .env.example .env
 ```
 
-Set `GOOGLE_CLOUD_PROJECT` in `.env`. The other values have working defaults.
-See [`.env.example`](.env.example) for all settings.
+Set `GOOGLE_CLOUD_PROJECT` in `.env`. Every other value has a default in
+[`config/settings.toml`](config/settings.toml): models, voices, locations, timeouts and thresholds.
+`.env` holds secrets and per-machine overrides; [`.env.example`](.env.example) lists them, and
+`ENV_OVERRIDES` in `config.py` maps each variable to its setting.
 
 ## Run
 
@@ -139,7 +141,9 @@ See [`.env.example`](.env.example) for all settings.
 | `uv run pytest` | Runs the unit and conversation tests (no network needed) |
 
 Each conversation is saved to `conversations/<id>.json`: the transcript with frustration readings,
-every tool call, the scorecard, and the summary.
+every tool call, the scorecard, and the summary. See
+[`examples/sample_conversation.json`](examples/sample_conversation.json) for a real run: a candidate
+who asks three job questions (one with no answer, which goes to the recruiter) and books an interview.
 
 ## Architecture
 
@@ -173,8 +177,10 @@ flowchart LR
     BOOT[bootstrap.py<br/>composition root] -. wires .-> IN & OUT
 ```
 
-A new provider is a new adapter. For example, Deepgram speech-to-text or ElevenLabs voices
-replace the Google services in `voice.py`, with no change to the domain or the tools.
+A new provider is a new adapter. Deepgram (speech-to-text) and ElevenLabs (text-to-speech) are
+two: `STT_PROVIDER` and `TTS_PROVIDER` choose the service in `adapters/inbound/speech.py`, with no
+change to the domain or the tools ([ADR-0012](docs/adr/0012-deepgram-speech-to-text.md),
+[ADR-0013](docs/adr/0013-elevenlabs-text-to-speech.md)).
 
 ### Tools the LLM can call
 
@@ -249,7 +255,7 @@ The main decisions, with the alternatives we rejected, are recorded as ADRs in [
 
 | Area | Improvement |
 |---|---|
-| Voice | Deepgram STT and ElevenLabs TTS as new adapters, for lower latency and a more natural voice |
+| Voice | Measure Deepgram and ElevenLabs against Google on real calls: time to first audio, accuracy on names and dates |
 | Latency | Measure time-to-first-audio per stage with Pipecat metrics. Overlap the job search with a short filler phrase |
 | Product | A recruiter view of the scorecards. Several roles, each with its own questions and knowledge |
 | Calendar | Replace the mock with Google Calendar through the same port |

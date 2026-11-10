@@ -45,7 +45,7 @@ async def test_parses_text_and_calls_and_keeps_history():
         ]
     )
     client = SimpleNamespace(aio=SimpleNamespace(models=fake))
-    chat = GeminiChatModel(client, "gemini-test", "system prompt")
+    chat = GeminiChatModel(client, "gemini-test", "system prompt", 0.4)
 
     reply = await chat.send_text("My order is ORD-104233")
     assert reply.text == ""
@@ -69,7 +69,7 @@ async def test_parses_text_and_calls_and_keeps_history():
 
 async def test_empty_candidate_returns_empty_reply():
     fake = FakeModels([types.GenerateContentResponse(candidates=[])])
-    chat = GeminiChatModel(SimpleNamespace(aio=SimpleNamespace(models=fake)), "m", "p")
+    chat = GeminiChatModel(SimpleNamespace(aio=SimpleNamespace(models=fake)), "m", "p", 0.4)
     reply = await chat.send_text("hello")
     assert reply.text == ""
     assert reply.function_calls == []
@@ -77,7 +77,7 @@ async def test_empty_candidate_returns_empty_reply():
 
 async def test_instruction_is_sent_before_the_candidate_text():
     fake = FakeModels([model_response(types.Part(text="I understand."))])
-    chat = GeminiChatModel(SimpleNamespace(aio=SimpleNamespace(models=fake)), "m", "p")
+    chat = GeminiChatModel(SimpleNamespace(aio=SimpleNamespace(models=fake)), "m", "p", 0.4)
     await chat.send_text("When can I start?", instruction="Acknowledge the frustration.")
     note, candidate = fake.requests[0][0].parts
     assert note.text.startswith("[Guidance for the agent, not said by the candidate:")
@@ -96,7 +96,9 @@ async def test_sentiment_analyzer_parses_structured_output():
         ]
     )
     fake = FakeModels([response])
-    analyzer = GeminiSentimentAnalyzer(SimpleNamespace(aio=SimpleNamespace(models=fake)), "lite")
+    analyzer = GeminiSentimentAnalyzer(
+        SimpleNamespace(aio=SimpleNamespace(models=fake)), "lite", 0.0
+    )
     recent = [Turn(role="assistant", text="How can I help?")]
     draft = await analyzer.analyze("This is my third call!", recent)
     assert (draft.frustration, draft.reason) == (0.8, "third call")
@@ -136,7 +138,7 @@ async def test_open_tool_calls_are_answered_before_new_candidate_text():
         function_call=types.FunctionCall(id="call-9", name="review_ticket", args={})
     )
     fake = FakeModels([model_response(open_call), model_response(types.Part(text="Sorry."))])
-    chat = GeminiChatModel(SimpleNamespace(aio=SimpleNamespace(models=fake)), "m", "prompt")
+    chat = GeminiChatModel(SimpleNamespace(aio=SimpleNamespace(models=fake)), "m", "prompt", 0.4)
     await chat.send_text("hello")
     await chat.send_text("are you there?")
     last_user_turn = fake.requests[1][-1]

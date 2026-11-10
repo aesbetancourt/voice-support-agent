@@ -19,10 +19,6 @@ from loguru import logger
 
 from screening_agent.application.ports import KnowledgeHit
 
-# Measured with gemini-embedding-001 on English questions: on-topic ones scored 0.699 or more,
-# off-topic ones ("can I bring my dog?") 0.662 or less. Below it, the recruiter answers.
-MIN_SCORE = 0.68
-
 
 @dataclass(frozen=True)
 class KnowledgeChunk:
@@ -63,7 +59,7 @@ class GeminiJobKnowledge:
         client: genai.Client,
         model: str,
         chunks: list[KnowledgeChunk],
-        min_score: float = MIN_SCORE,
+        min_score: float,
     ) -> None:
         self._client = client
         self._model = model

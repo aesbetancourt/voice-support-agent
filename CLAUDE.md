@@ -26,7 +26,7 @@ The code is hexagonal. Imports point inward only: `adapters` â†’ `application` â
 - **domain/** holds pure rules: models, validators, the `ScreeningSession` state machine, `FrustrationPolicy`.
   It imports nothing from the project and no SDK.
 - **application/** holds use cases and the ports (`ports.py`). It imports the domain and its own ports.
-- **adapters/** hold every SDK: Pipecat and Google in `inbound/voice.py`, `google-genai` in `outbound/gemini.py`
+- **adapters/** hold every SDK: Pipecat, Google and Deepgram in `inbound/voice.py`, `google-genai` in `outbound/gemini.py`
   and `outbound/embeddings_knowledge.py`.
 - **bootstrap.py** builds each conversation: it wires the outbound adapters to the ports.
   The voice adapter also builds Pipecat's Google services, which call Google directly (ADR-0004).
@@ -60,7 +60,14 @@ These are the design. Keep them true in every change:
   search, and the client timeout for Gemini. The JSON store writes small files synchronously, after each turn.
 - Log with `loguru`'s `logger`. The CLI is the only module that prints.
 - Re-raise with `from exc` to keep the cause.
-- Name a constant for every threshold or limit, next to the code that uses it, with a one-line reason.
+- No magic values in adapters. Every tunable value (model, voice, location, timeout, threshold) goes in
+  `config/settings.toml`, with a one-line reason, and reaches the adapter through `Settings`. Secrets
+  and per-machine choices go in `.env`; add each new variable to `ENV_OVERRIDES` in `config.py`.
+- Fixed protocol strings (Pipecat roles, RTVI message types) go in `adapters/constants.py`.
+- The domain and application layers cannot import `config`. Their business rules and limits stay as
+  named constants next to the code that uses them, with a one-line reason.
+- A new speech provider gets a settings section, a builder in `adapters/inbound/speech.py`, and an entry
+  in its builder table.
 - Write comments that explain why. Keep them to one or two lines.
 
 ## Docs and commits

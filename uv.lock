@@ -652,6 +652,22 @@ wheels = [
 ]
 
 [[package]]
+name = "deepgram-sdk"
+version = "7.17.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d6/3f/02a1db07f310f37df9e0acf6580845bc767e656ca225cfe381a5b51a6daf/deepgram_sdk-7.17.0.tar.gz", hash = "sha256:6831641f27a288a2004b7c85be224ec7ecae3f007defc6cdacfe6538531a6de2", size = 262389, upload-time = "2026-11-04T11:33:03.691Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/11/68/09844a59e656d879fdbdac07194b46e6b9ba59f840cbfb2f7f40503ca205/deepgram_sdk-7.17.0-py3-none-any.whl", hash = "sha256:04266a9ec5c946fdaf30e3bf424ac3e2ea29ec4086e2a8af6bb351663805f2c1", size = 683233, upload-time = "2026-11-04T11:33:02.173Z" },
+]
+
+[[package]]
 name = "detect-installer"
 version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2264,6 +2280,9 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+deepgram = [
+    { name = "deepgram-sdk" },
+]
 google = [
     { name = "google-cloud-speech" },
     { name = "google-cloud-texttospeech" },
@@ -2962,7 +2981,7 @@ source = { editable = "." }
 dependencies = [
     { name = "google-genai" },
     { name = "loguru" },
-    { name = "pipecat-ai", extra = ["google", "runner", "webrtc"] },
+    { name = "pipecat-ai", extra = ["deepgram", "google", "runner", "webrtc"] },
     { name = "pydantic" },
     { name = "python-dotenv" },
 ]
@@ -2978,7 +2997,7 @@ dev = [
 requires-dist = [
     { name = "google-genai", specifier = ">=2.34.0" },
     { name = "loguru", specifier = ">=0.7.3" },
-    { name = "pipecat-ai", extras = ["google", "runner", "silero", "webrtc"], specifier = ">=1.15.0" },
+    { name = "pipecat-ai", extras = ["deepgram", "elevenlabs", "google", "runner", "silero", "webrtc"], specifier = ">=1.15.0" },
     { name = "pydantic", specifier = ">=2.14.2" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
 ]

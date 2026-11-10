@@ -1,0 +1,96 @@
+# Default settings for the app and every adapter.
+# Secrets and per-machine choices go in .env: an environment variable overrides the value
+# named next to it here. config.py (ENV_OVERRIDES) lists every override.
+
+[app]
+default_language = "en"        # DEFAULT_LANGUAGE: the greeting language (en or es)
+max_field_attempts = 3         # MAX_FIELD_ATTEMPTS: invalid values before a recruiter call back
+job_path = "data/job.json"                     # JOB_PATH
+knowledge_path = "data/job_knowledge.json"     # KNOWLEDGE_PATH
+conversations_dir = "conversations"            # CONVERSATIONS_DIR
+
+[google]
+project = ""                   # GOOGLE_CLOUD_PROJECT (required)
+
+[gemini]
+location = "global"            # GOOGLE_CLOUD_LOCATION: Gemini 3 models are served only from "global"
+model = "gemini-3.5-flash"                 # GEMINI_MODEL: the conversation
+summary_model = "gemini-3.5-flash"         # GEMINI_SUMMARY_MODEL: the end-of-call summary
+sentiment_model = "gemini-3.5-flash-lite"  # GEMINI_SENTIMENT_MODEL: small and fast, on every turn
+judge_model = "gemini-3.5-flash"           # GEMINI_JUDGE_MODEL: runs offline, so a slower one is fine
+# Low enough for consistent tool calls, high enough for natural replies.
+temperature = 0.4
+summary_temperature = 0.2
+sentiment_temperature = 0.0
+judge_temperature = 0.0
+# The simulated candidate needs variety between runs.
+candidate_temperature = 0.8
+# A model round takes about 1 s; 30 s stops a hung request without cutting a slow one.
+timeout_ms = 30000
+# Retry rate limits and server errors with exponential backoff.
+retry_attempts = 3
+retry_initial_delay_secs = 1.0
+retry_max_delay_secs = 8.0
+
+[embeddings]
+model = "gemini-embedding-001"  # GEMINI_EMBEDDING_MODEL: multilingual
+location = "us-central1"        # EMBEDDING_LOCATION: embedding models are not served from "global"
+# Measured on English questions: on-topic ones scored 0.699 or more, off-topic ones 0.662 or
+# less (ADR-0011). Below it, the recruiter answers the question.
+min_score = 0.68
+
+[calendar]
+# The warehouse manager interviews between the morning and afternoon peaks.
+interview_times = ["10:00", "12:30", "16:00"]
+working_days_ahead = 3
+
+[cli]
+# A long answer fits easily; a pasted document does not reach the model.
+max_input_chars = 2000
+# Enough turns for every persona; it stops a simulation that never ends.
+simulate_max_turns = 24
+
+# --- Speech ------------------------------------------------------------------------------
+
+[speech]
+# Speech-recognition locale for each conversation language. TTS voices use the same locale.
+locales = { en = "en-US", es = "es-US" }
+# Phrase hints (Google) or keyterms (Deepgram): names and terms that STT does not know.
+phrase_hints = true            # GOOGLE_STT_PHRASE_HINTS
+terms.en = ["Harbor Logistics", "work permit", "forklift", "Getafe", "shift"]
+terms.es = ["Harbor Logistics", "permiso de trabajo", "carretilla", "Getafe", "turno"]
+
+[stt]
+provider = "google"            # STT_PROVIDER: google or deepgram
+
+[stt.google]
+# chirp_3 detects the language of each utterance and got codes and numbers right in both
+# languages (ADR-0009). It is served from regional locations only.
+model = "chirp_3"
+location = "us"
+# Low boosts: Gemini reads the meaning from free speech; the hints only help with names.
+phrase_boost = 8.0
+
+[stt.deepgram]
+api_key = ""                   # DEEPGRAM_API_KEY (required for deepgram)
+model = "nova-3"               # DEEPGRAM_MODEL: transcribes English and Spanish in one stream
+# One stream in several languages; Deepgram reports each utterance's language (ADR-0012).
+language = "multi"
+smart_format = true
+
+[tts]
+provider = "google"            # TTS_PROVIDER: google or elevenlabs
+
+[tts.google]
+# A female Chirp 3 HD voice, to match the name "Ava". Same voice family in both languages.
+voices = { en = "en-US-Chirp3-HD-Aoede", es = "es-US-Chirp3-HD-Aoede" }
+
+[tts.elevenlabs]
+api_key = ""                   # ELEVENLABS_API_KEY (required for elevenlabs)
+voice_id = ""                  # ELEVENLABS_VOICE_ID (required): one multilingual voice for every language
+# The lowest-latency multilingual model (about 75 ms); it speaks English and Spanish.
+model = "eleven_flash_v2_5"    # ELEVENLABS_MODEL
+# ElevenLabs' own defaults: a natural, stable phone voice. Speed 1.0 is normal speech.
+stability = 0.5
+similarity_boost = 0.75
+speed = 1.0

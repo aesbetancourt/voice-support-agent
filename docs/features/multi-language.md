@@ -106,7 +106,7 @@ Gemini does not switch on its own. The prompt tells it to wait for the developer
 
 ## 4. What changes per language
 
-### Voice profile (`VOICE_PROFILES` in `adapters/inbound/voice.py`)
+### Speech settings (`[speech]`, `[stt.*]` and `[tts.*]` in `config/settings.toml`)
 
 | | English | Spanish |
 |---|---|---|
@@ -114,8 +114,8 @@ Gemini does not switch on its own. The prompt tells it to wait for the developer
 | TTS voice | `en-US-Chirp3-HD-Aoede` | `es-US-Chirp3-HD-Aoede` |
 | Phrase hints | "Harbor Logistics", "work permit", "forklift", "Getafe", "shift" | "Harbor Logistics", "permiso de trabajo", "carretilla", "Getafe", "turno" |
 
-Speech recognition is shared: one `chirp_3` recognizer in the `us` location (`STT_MODEL`, `STT_LOCATION`). It gets every profile's language, with the starting language first, and all phrase hints.
-The hints help with names and terms that speech recognition does not know. Their boost stays low (8.0), because Gemini reads the meaning from free speech.
+Speech recognition is shared. With Google, one `chirp_3` recognizer in the `us` location (`[stt.google]`) gets every locale, with the starting language first, and the terms of every language as phrase hints. With Deepgram, one `nova-3` stream in `multi` mode (`[stt.deepgram]`) gets the same terms as keyterms.
+The terms help with names and words that speech recognition does not know. The Google boost stays low (`phrase_boost = 8.0`), because Gemini reads the meaning from free speech.
 Set `GOOGLE_STT_PHRASE_HINTS=false` in `.env` to turn them off.
 
 **Why `chirp_3`.** The model was chosen in the earlier customer-support version, with a spoken code of letters and digits (ADR-0009).
@@ -170,9 +170,10 @@ Gemini converts other spoken dates ("en dos semanas") to `YYYY-MM-DD` before it 
 | Application | `application/tools.py` | `ToolExecutor(language=…)` uses the catalog |
 | Application | `application/recorder.py`, `agent.py` | The record stores the language. The greeting uses it |
 | Application | `application/summary.py`, `sentiment.py` | The summary is always in English. Sentiment rates any language |
-| Inbound adapter | `adapters/inbound/voice.py` | `VoiceProfile`, `VOICE_PROFILES`, `STT_MODEL`, `stt_languages()`, `LanguageSwitcher`, `language_switch_frames()`, `session_language()` |
+| Inbound adapter | `adapters/inbound/speech.py` | `stt_locale()`, `stt_languages()`, `build_stt()`, `build_tts()`, `tts_language_update()` |
+| Inbound adapter | `adapters/inbound/voice.py` | `LanguageSwitcher`, `detected_language()`, `language_switch_frames()`, `session_language()` |
 | Inbound adapter | `adapters/inbound/cli.py`, `simulate.py` | `--language` on `chat`, `voice` and `simulate`. Simulated candidates speak the language |
-| Config | `config.py`, `.env.example` | `DEFAULT_LANGUAGE`, `GOOGLE_STT_PHRASE_HINTS` |
+| Config | `config/settings.toml`, `config.py`, `.env.example` | `[speech]` locales and terms, `[tts.google]` voices. Overrides: `DEFAULT_LANGUAGE`, `GOOGLE_STT_PHRASE_HINTS` |
 | Composition root | `bootstrap.py` | `new_conversation(…, language)` passes the language to the recorder and the executor. `make_text_agent()` passes it to the prompt |
 
 ---
@@ -217,9 +218,9 @@ Example: French.
 2. In `domain/validators.py`, add `"french"` and `"francais"` to `_LANGUAGE_ALIASES`. Add French yes/no words (`_YES`, `_NO`), shift words (`_SHIFT_ALIASES`, `_ALL_SHIFTS_WORDS`, `_NO_SHIFT_WORDS`) and "now" words (`_NOW_WORDS`).
 3. In `application/messages.py`, add a `Language.FR` entry to `LANGUAGE_NAMES` and to every catalog: weekdays, months, `_WHEN`, shift names, `_AND`, requirement reasons, the four closing messages, retry and technical error messages.
 4. Add a `_LANGUAGE_NOTES` entry if the language needs a register rule, such as "vous".
-5. Add a `VoiceProfile` with the STT language, voice and phrase hints in `adapters/inbound/voice.py`.
+5. In `config/settings.toml`, add `fr` to `[speech] locales` and `terms`, and to `[tts.google] voices`.
 6. Make sure `chirp_3` supports the language. Test spoken dates and the job terms with it.
-7. Run `uv run pytest`. The message and profile tests fail if a closing message, a requirement reason or a voice profile is missing.
+7. Run `uv run pytest`. The message and speech tests fail if a closing message, a requirement reason, a locale or a voice is missing.
 
 ---
 

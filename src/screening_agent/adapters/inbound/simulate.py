@@ -167,14 +167,19 @@ class SimulationResult:
 
 class SimulatedCandidate:
     def __init__(
-        self, client: genai.Client, model: str, persona: Persona, language: Language = Language.EN
+        self,
+        client: genai.Client,
+        model: str,
+        temperature: float,
+        persona: Persona,
+        language: Language = Language.EN,
     ) -> None:
         self._client = client
         self._model = model
         language_rule = f"Write only in {LANGUAGE_NAMES[language]}."
         self._config = types.GenerateContentConfig(
             system_instruction=f"{_CANDIDATE_RULES}\n{language_rule}\nPersona: {persona.brief}",
-            temperature=0.8,
+            temperature=temperature,
         )
         self._history: list[types.Content] = []
 
@@ -208,7 +213,11 @@ def judge_input(persona: Persona, record: ConversationRecord) -> str:
 
 
 async def judge(
-    client: genai.Client, model: str, persona: Persona, record: ConversationRecord
+    client: genai.Client,
+    model: str,
+    temperature: float,
+    persona: Persona,
+    record: ConversationRecord,
 ) -> JudgeVerdict:
     response = await client.aio.models.generate_content(
         model=model,
@@ -217,7 +226,7 @@ async def judge(
             system_instruction=_JUDGE_INSTRUCTION,
             response_mime_type="application/json",
             response_schema=JudgeVerdict,
-            temperature=0.0,
+            temperature=temperature,
         ),
     )
     verdict = response.parsed
@@ -240,7 +249,10 @@ async def run_persona(
         make_sentiment_analyzer(settings, client),
     )
     agent = make_text_agent(settings, client, conversation)
-    candidate = SimulatedCandidate(client, settings.model, persona, settings.default_language)
+    gemini = settings.gemini
+    candidate = SimulatedCandidate(
+        client, gemini.model, gemini.candidate_temperature, persona, settings.app.default_language
+    )
 
     turns = 0
     reply = await agent.greet()
@@ -254,5 +266,9 @@ async def run_persona(
     finally:
         await agent.wait_for_reading()
         record = await conversation.recorder.finish()
-    verdict = await judge(client, settings.judge_model, persona, record) if with_judge else None
+    verdict = (
+        await judge(client, gemini.judge_model, gemini.judge_temperature, persona, record)
+        if with_judge
+        else None
+    )
     return SimulationResult(persona=persona, record=record, turns=turns, verdict=verdict)

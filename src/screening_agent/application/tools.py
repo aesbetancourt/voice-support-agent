@@ -68,8 +68,9 @@ TOOL_SPECS: list[ToolSpec] = [
                 "description": (
                     "work_permit and commute: 'yes' or 'no'. shifts: exactly the shifts the "
                     "candidate named, from morning, afternoon and night; 'any' only if they "
-                    "said any shift. start_date: the earliest start date as YYYY-MM-DD, or "
-                    "'immediately'."
+                    "said any shift. start_date: as YYYY-MM-DD. If the candidate names a day "
+                    "('next Monday'), use that date, even if they also say 'immediately'. Use "
+                    "'immediately' only when they name no day."
                 ),
             },
             "confirmed": {

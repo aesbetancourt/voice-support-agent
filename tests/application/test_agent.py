@@ -5,10 +5,9 @@ import json
 from pathlib import Path
 
 import pytest
-from conftest import TODAY, FakeKnowledge
+from conftest import TODAY, FakeKnowledge, make_calendar
 
 from screening_agent.adapters.outbound.json_store import JsonConversationStore
-from screening_agent.adapters.outbound.mock_calendar import MockInterviewCalendar
 from screening_agent.application.agent import TextAgent
 from screening_agent.application.messages import retry_message
 from screening_agent.application.ports import FunctionCall, ModelReply
@@ -81,7 +80,7 @@ def build(job, tmp_path, replies, frustration_scores=None, language=Language.EN,
     executor = ToolExecutor(
         session,
         FakeKnowledge(),
-        MockInterviewCalendar(today=lambda: TODAY),
+        make_calendar(),
         recorder.add_tool_call,
         language,
     )

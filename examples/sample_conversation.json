@@ -1,249 +1,451 @@
 {
-  "id": "20261030T182722-c1b952a1",
-  "channel": "voice",
+  "id": "20261110T135446-08487165",
+  "channel": "text",
   "language": "en",
-  "status": "completed",
-  "stage": "completed",
-  "started_at": "2026-10-30T18:27:22.530578Z",
-  "ended_at": "2026-10-30T18:29:08.855782Z",
-  "ticket": {
-    "ticket_id": "TCK-651873",
-    "order_number": "ORD-104233",
-    "customer_name": "Maria Lopez",
-    "category": "product_defect",
-    "description": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
-    "urgency": "medium"
-  },
-  "order": {
-    "order_number": "ORD-104233",
-    "customer_name": "Maria Lopez",
-    "email": "maria.lopez@example.com",
-    "status": "delivered",
-    "items": [
-      "Aurora wireless headphones"
+  "job_id": "harbor-wh-operator-getafe",
+  "status": "booked",
+  "stage": "booked",
+  "started_at": "2026-11-10T13:54:46.873735Z",
+  "ended_at": "2026-11-10T13:55:54.129676Z",
+  "scorecard": {
+    "candidate_name": "Marta Diaz",
+    "must_haves": {
+      "work_permit": {
+        "requirement": "work_permit",
+        "answer": "yes",
+        "passed": true,
+        "confirmed": true
+      },
+      "shifts": {
+        "requirement": "shifts",
+        "answer": "morning, afternoon",
+        "passed": true,
+        "confirmed": true
+      },
+      "start_date": {
+        "requirement": "start_date",
+        "answer": "2026-11-10",
+        "passed": true,
+        "confirmed": true
+      },
+      "commute": {
+        "requirement": "commute",
+        "answer": "yes",
+        "passed": true,
+        "confirmed": true
+      }
+    },
+    "answers": {
+      "teamwork": {
+        "question_id": "teamwork",
+        "summary": "The candidate split the supermarket team into pairs to unload late-arriving delivery trucks before opening.",
+        "evidence_quote": "split our team into pairs",
+        "specificity": "specific",
+        "score": 4,
+        "follow_up_asked": false
+      },
+      "safety": {
+        "question_id": "safety",
+        "summary": "The candidate noticed a leaning pallet near an emergency exit, stopped work, reported it, and helped restack it.",
+        "evidence_quote": "stopped work in that area and reported it",
+        "specificity": "specific",
+        "score": 4,
+        "follow_up_asked": false
+      }
+    },
+    "open_questions": [
+      "Can I bring my dog to work?"
     ],
-    "total": 149.99,
-    "placed_on": "2026-10-12",
-    "delivered_on": "2026-10-16"
+    "interview": {
+      "id": "20261112-1230",
+      "starts_at": "2026-11-12T12:30:00"
+    },
+    "booking_id": "INT-797666",
+    "recommendation": "advance"
   },
-  "escalation_reason": null,
+  "close_reason": "Interview booked.",
   "transcript": [
     {
       "role": "assistant",
-      "text": "Hello! I'm Ava from Acme Store. How can I help you today?",
-      "at": "2026-10-30T18:27:28.303792Z",
+      "text": "Hi there! I'm Ava, an AI recruiting assistant for Harbor Logistics. Thanks for applying for our Warehouse Operator role in Getafe! \n\nThis quick screening call takes about five minutes, and your answers will be saved for our recruiting team, who make all the final decisions. Could you please tell me your name and if you're ready to get started?",
+      "at": "2026-11-10T13:54:51.388518Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "Hi, my order number is ORD999999.",
-      "at": "2026-10-30T18:27:37.840526Z",
+      "text": "Hi Ava! Yes, I'm Marta Diaz, and I'm definitely ready to get started. Before we begin, could you tell me how much this Warehouse Operator role pays?",
+      "at": "2026-11-10T13:54:54.272552Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The customer is politely providing their order number.",
+        "reason": "The candidate is calm and enthusiastic about starting.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "I'm sorry, but I couldn't find an order with the number O R D, nine nine nine, nine nine nine. Could you please double-check the number and read it to me again?",
-      "at": "2026-10-30T18:27:53.404134Z",
+      "text": "Great to meet you, Marta! \n\nTo answer your question, the pay is 1,580 euros gross per month, in 14 payments a year, and Saturday shifts in peak season are paid at 1.5 times the normal rate. \n\nTo kick things off with our questions, do you have a valid permit to work in Spain?",
+      "at": "2026-11-10T13:55:02.715311Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "Yeah, sorry. It is ORD104233.",
-      "at": "2026-10-30T18:28:01.706973Z",
+      "text": "That pay rate sounds great, thank you. Yes, I have a valid permit to work in Spain and am fully authorized to work here.",
+      "at": "2026-11-10T13:55:05.752980Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "The customer calmly provides the correct order number.",
+        "reason": "The candidate is positive and answers the question politely.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "Thank you, I found your order for the Aurora wireless headphones. What seems to be the problem with them?",
-      "at": "2026-10-30T18:28:09.832985Z",
+      "text": "Perfect, thanks for confirming that, Marta! \n\nThis role has rotating morning and afternoon shifts, Monday to Friday. Which of these shifts are you able to work?",
+      "at": "2026-11-10T13:55:10.304076Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "My headphones arrived with a cracked ear cup.",
-      "at": "2026-10-30T18:28:16.992844Z",
-      "sentiment": {
-        "frustration": 0.3,
-        "reason": "Customer is mildly annoyed reporting damaged product.",
-        "action": "none"
-      }
-    },
-    {
-      "role": "assistant",
-      "text": "I'm so sorry to hear that your headphones arrived damaged. Since they arrived cracked, I would classify this as a medium urgency issue so we can get this resolved for you quickly.",
-      "at": "2026-10-30T18:28:28.843094Z",
-      "sentiment": null
-    },
-    {
-      "role": "user",
-      "text": "Yeah, medium medium is is fine.",
-      "at": "2026-10-30T18:28:32.576884Z",
+      "text": "I'm fully available for both morning and afternoon shifts. I was actually wondering, are there also night shifts available for this role, or is it only those two?",
+      "at": "2026-11-10T13:55:12.133614Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "Customer calmly agrees with the agent's proposed urgency level.",
+        "reason": "The candidate is calm, positive, and asking about night shifts.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "I have created a support ticket for you. The order number is O R D, one zero four, two three three. The issue is that your Aurora wireless headphones arrived with a cracked ear cup, and we have set the urgency to medium. Is all of this correct?",
-      "at": "2026-10-30T18:28:50.402285Z",
+      "text": "Got it, thanks! \n\nTo answer your question, there are no night shifts for this role—it is just the weekly rotating morning and afternoon shifts. \n\nWhen would you be able to start working with us?",
+      "at": "2026-11-10T13:55:16.524560Z",
       "sentiment": null
     },
     {
       "role": "user",
-      "text": "Yeah, that is correct.",
-      "at": "2026-10-30T18:28:53.973347Z",
+      "text": "That's good to know about the shifts, thanks for clarifying. I am available to start immediately, as soon as you need me!",
+      "at": "2026-11-10T13:55:18.446429Z",
       "sentiment": {
         "frustration": 0.0,
-        "reason": "Customer calmly confirmed the details are correct.",
+        "reason": "The candidate is positive, cooperative, and eager to start.",
         "action": "none"
       }
     },
     {
       "role": "assistant",
-      "text": "Your ticket is submitted. The reference is TCK-651873. Our team will contact you soon. Thank you for contacting Acme Store. Goodbye!",
-      "at": "2026-10-30T18:28:55.304022Z",
+      "text": "That's fantastic! Immediate availability is always great. \n\nCan you reliably commute to the Getafe logistics park in Madrid, especially for that 6:00 AM morning start?",
+      "at": "2026-11-10T13:55:22.748485Z",
+      "sentiment": null
+    },
+    {
+      "role": "user",
+      "text": "Yes, I can absolutely commute to Getafe reliably. I have my own transport, so the 6:00 AM start won't be a problem for me at all.",
+      "at": "2026-11-10T13:55:25.444784Z",
+      "sentiment": {
+        "frustration": 0.0,
+        "reason": "The candidate is positive and confirms their availability.",
+        "action": "none"
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "That's perfect, having your own transport makes it so much easier! \n\nNow, I'd love to hear a bit about your experience. Could you tell me about a time you had to finish work with a team under time pressure? What did you do?",
+      "at": "2026-11-10T13:55:28.417505Z",
+      "sentiment": null
+    },
+    {
+      "role": "user",
+      "text": "Last Christmas at the supermarket where I worked, two delivery trucks arrived really late. I split our team into pairs so we could work more efficiently, and we managed to unload everything before the store opened.",
+      "at": "2026-11-10T13:55:30.414831Z",
+      "sentiment": {
+        "frustration": 0.0,
+        "reason": "The candidate provides a calm and detailed answer about teamwork.",
+        "action": "none"
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "That sounds like a very busy shift, great job taking the initiative there! \n\nCould you tell me about a time you noticed a safety risk or a mistake at work? What did you do about it?",
+      "at": "2026-11-10T13:55:34.051002Z",
+      "sentiment": null
+    },
+    {
+      "role": "user",
+      "text": "Once I noticed a pallet leaning dangerously near one of the emergency exits. I immediately stopped work in that area and reported it to my supervisor, and we got it safely restacked right away.",
+      "at": "2026-11-10T13:55:35.956772Z",
+      "sentiment": {
+        "frustration": 0.0,
+        "reason": "The candidate calmly and clearly answers the interview question.",
+        "action": "none"
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks for sharing that, Marta. Safety is definitely our top priority here, so that's great to hear. \n\nWe'd love to invite you to a 30-minute video interview with our warehouse manager. Would Wednesday, November 11th at 10:00 AM or Thursday, November 12th at 12:30 PM work for you?",
+      "at": "2026-11-10T13:55:41.494145Z",
+      "sentiment": null
+    },
+    {
+      "role": "user",
+      "text": "Before we book that, I have one more question: is it allowed to bring my dog to work with me? If that's okay, I would like to choose the Thursday, November 12th slot at 12:30 PM.",
+      "at": "2026-11-10T13:55:44.048368Z",
+      "sentiment": {
+        "frustration": 0.0,
+        "reason": "The candidate asks a calm question and selects a slot.",
+        "action": "none"
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "I don't have that detail about the dog policy, but the manager will be able to answer that for you during the interview. \n\nShall we go ahead and book that Thursday slot at 12:30 PM?",
+      "at": "2026-11-10T13:55:50.691420Z",
+      "sentiment": null
+    },
+    {
+      "role": "user",
+      "text": "Yes, please go ahead and book that. Thursday, November 12th at 12:30 PM works perfectly for me. Thank you so much, Ava!",
+      "at": "2026-11-10T13:55:52.583090Z",
+      "sentiment": {
+        "frustration": 0.0,
+        "reason": "The candidate is agreeable, polite, and confirms the interview slot.",
+        "action": "none"
+      }
+    },
+    {
+      "role": "assistant",
+      "text": "Perfect. Your video interview with the warehouse manager is booked for Thursday 12 November at 12:30. Your reference is INT-797666. You will get the details by email. Thank you for your time, and good luck!",
+      "at": "2026-11-10T13:55:54.127925Z",
       "sentiment": null
     }
   ],
   "tool_calls": [
     {
-      "name": "lookup_order",
+      "name": "start_screening",
       "arguments": {
-        "order_number": "ORD999999"
-      },
-      "result": {
-        "ok": false,
-        "rejected": {
-          "order_number": "No order ORD-999999 exists. Ask the customer to check the number."
-        },
-        "stage": "collecting",
-        "missing_fields": [
-          "order_number",
-          "category",
-          "description",
-          "urgency"
-        ]
-      },
-      "at": "2026-10-30T18:27:41.968051Z"
-    },
-    {
-      "name": "lookup_order",
-      "arguments": {
-        "order_number": "ORD104233"
+        "consent": true,
+        "candidate_name": "Marta Diaz"
       },
       "result": {
         "ok": true,
-        "order": {
-          "order_number": "ORD-104233",
-          "customer_name": "Maria Lopez",
-          "status": "delivered",
-          "items": [
-            "Aurora wireless headphones"
-          ],
-          "total": 149.99,
-          "placed_on": "2026-10-12",
-          "delivered_on": "2026-10-16"
-        },
-        "stage": "collecting",
-        "missing_fields": [
-          "category",
-          "description",
-          "urgency"
+        "instruction": "Ask about the requirements, one at a time.",
+        "stage": "must_haves",
+        "open_requirements": [
+          "work_permit",
+          "shifts",
+          "start_date",
+          "commute"
         ]
       },
-      "at": "2026-10-30T18:28:02.989617Z"
+      "at": "2026-11-10T13:54:56.776883Z"
     },
     {
-      "name": "update_ticket",
+      "name": "search_job_info",
       "arguments": {
-        "description": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
-        "category": "product_defect"
+        "question": "What is the pay for the Warehouse Operator role?"
       },
       "result": {
         "ok": true,
-        "accepted": {
-          "description": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
-          "category": "product_defect"
-        },
-        "stage": "collecting",
-        "missing_fields": [
-          "urgency"
-        ]
+        "found": true,
+        "information": [
+          "Pay: 1,580 euros gross per month, in 14 payments a year. Saturday shifts in peak season are paid at 1.5 times the normal rate.",
+          "After this call: a 30-minute video interview with the warehouse manager, then a 1-hour visit to the warehouse. A decision comes within one week of the visit.",
+          "New operators get 2 weeks of paid training. Harbor Logistics pays for the forklift licence for operators who want it, after 3 months."
+        ],
+        "instruction": "Answer only from this information, in one or two short sentences. If it does not answer the question, say that the recruiter will answer it. Then continue the screening where you stopped."
       },
-      "at": "2026-10-30T18:28:17.852219Z"
+      "at": "2026-11-10T13:54:59.140593Z"
     },
     {
-      "name": "update_ticket",
+      "name": "record_must_have",
       "arguments": {
-        "urgency": "medium"
+        "requirement": "work_permit",
+        "confirmed": false,
+        "answer": "yes"
       },
       "result": {
         "ok": true,
-        "accepted": {
-          "urgency": "medium"
-        },
-        "stage": "collecting",
-        "missing_fields": []
+        "stage": "must_haves",
+        "open_requirements": [
+          "shifts",
+          "start_date",
+          "commute"
+        ]
       },
-      "at": "2026-10-30T18:28:33.857238Z"
+      "at": "2026-11-10T13:55:07.684938Z"
     },
     {
-      "name": "review_ticket",
+      "name": "record_must_have",
+      "arguments": {
+        "answer": "morning, afternoon",
+        "confirmed": false,
+        "requirement": "shifts"
+      },
+      "result": {
+        "ok": true,
+        "stage": "must_haves",
+        "open_requirements": [
+          "start_date",
+          "commute"
+        ]
+      },
+      "at": "2026-11-10T13:55:14.080034Z"
+    },
+    {
+      "name": "search_job_info",
+      "arguments": {
+        "question": "Are there night shifts available for this role?"
+      },
+      "result": {
+        "ok": true,
+        "found": true,
+        "information": [
+          "Shifts rotate every week: the morning shift is 6:00 to 14:00 and the afternoon shift is 14:00 to 22:00, Monday to Friday. There are no night shifts. In peak season (November and December) some Saturdays are needed, and they are paid extra.",
+          "The contract is full time, 40 hours a week. It starts as a 6-month contract and becomes permanent after a good review.",
+          "Each 8-hour shift has a 30-minute paid break."
+        ],
+        "instruction": "Answer only from this information, in one or two short sentences. If it does not answer the question, say that the recruiter will answer it. Then continue the screening where you stopped."
+      },
+      "at": "2026-11-10T13:55:14.449913Z"
+    },
+    {
+      "name": "record_must_have",
+      "arguments": {
+        "answer": "immediately",
+        "requirement": "start_date",
+        "confirmed": false
+      },
+      "result": {
+        "ok": true,
+        "stage": "must_haves",
+        "open_requirements": [
+          "commute"
+        ]
+      },
+      "at": "2026-11-10T13:55:21.319748Z"
+    },
+    {
+      "name": "record_must_have",
+      "arguments": {
+        "confirmed": false,
+        "answer": "yes",
+        "requirement": "commute"
+      },
+      "result": {
+        "ok": true,
+        "instruction": "All requirements are met. Do not say so. Ask the next question.",
+        "stage": "experience",
+        "next_question": {
+          "id": "teamwork",
+          "text": "Tell me about a time you had to finish work with a team under time pressure. What did you do?"
+        }
+      },
+      "at": "2026-11-10T13:55:27.080627Z"
+    },
+    {
+      "name": "record_answer",
+      "arguments": {
+        "evidence_quote": "split our team into pairs",
+        "specificity": "specific",
+        "summary": "The candidate split the supermarket team into pairs to unload late-arriving delivery trucks before opening.",
+        "question_id": "teamwork",
+        "score": 4
+      },
+      "result": {
+        "ok": true,
+        "stage": "experience",
+        "next_question": {
+          "id": "safety",
+          "text": "Tell me about a time you noticed a safety risk or a mistake at work. What did you do about it?"
+        }
+      },
+      "at": "2026-11-10T13:55:32.480892Z"
+    },
+    {
+      "name": "record_answer",
+      "arguments": {
+        "summary": "The candidate noticed a leaning pallet near an emergency exit, stopped work, reported it, and helped restack it.",
+        "evidence_quote": "stopped work in that area and reported it",
+        "score": 4,
+        "specificity": "specific",
+        "question_id": "safety"
+      },
+      "result": {
+        "ok": true,
+        "instruction": "Thank the candidate. Call get_interview_slots and offer times.",
+        "stage": "scheduling"
+      },
+      "at": "2026-11-10T13:55:37.913622Z"
+    },
+    {
+      "name": "get_interview_slots",
       "arguments": {},
       "result": {
         "ok": true,
-        "instruction": "Read this ticket back to the customer and ask them to confirm it.",
-        "ticket": {
-          "order_number": "ORD-104233",
-          "customer_name": "Maria Lopez",
-          "category": "product_defect",
-          "description": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
-          "urgency": "medium"
-        },
-        "stage": "confirming",
-        "missing_fields": []
+        "slots": [
+          {
+            "slot_id": "20261111-1000",
+            "starts_at": "Wednesday 2026-11-11 10:00"
+          },
+          {
+            "slot_id": "20261111-1230",
+            "starts_at": "Wednesday 2026-11-11 12:30"
+          },
+          {
+            "slot_id": "20261111-1600",
+            "starts_at": "Wednesday 2026-11-11 16:00"
+          },
+          {
+            "slot_id": "20261112-1000",
+            "starts_at": "Thursday 2026-11-12 10:00"
+          },
+          {
+            "slot_id": "20261112-1230",
+            "starts_at": "Thursday 2026-11-12 12:30"
+          },
+          {
+            "slot_id": "20261112-1600",
+            "starts_at": "Thursday 2026-11-12 16:00"
+          }
+        ],
+        "instruction": "Offer two or three of these times. Book the one the candidate picks."
       },
-      "at": "2026-10-30T18:28:34.579858Z"
+      "at": "2026-11-10T13:55:39.167808Z"
     },
     {
-      "name": "finalize_ticket",
-      "arguments": {},
+      "name": "search_job_info",
+      "arguments": {
+        "question": "Can I bring my dog to work?"
+      },
       "result": {
         "ok": true,
-        "ticket_id": "TCK-651873",
-        "stage": "completed",
-        "missing_fields": []
+        "found": false,
+        "instruction": "The job information has no answer. Say that you do not have that detail and that the recruiter will answer it. Do not guess. Then continue."
       },
-      "at": "2026-10-30T18:28:55.303795Z"
-    }
-  ],
-  "validation_events": [
+      "at": "2026-11-10T13:55:46.942599Z"
+    },
     {
-      "field": "order_number",
-      "value": "ORD-999999",
-      "error": "No order ORD-999999 exists. Ask the customer to check the number.",
-      "at": "2026-10-30T18:27:41.968005Z"
+      "name": "book_interview",
+      "arguments": {
+        "slot_id": "20261112-1230"
+      },
+      "result": {
+        "ok": true,
+        "booking_id": "INT-797666",
+        "stage": "booked"
+      },
+      "at": "2026-11-10T13:55:54.127803Z"
     }
   ],
+  "validation_events": [],
   "summary": {
-    "headline": "The customer's Aurora wireless headphones arrived with a cracked ear cup.",
+    "headline": "Marta Diaz applied for the Warehouse Operator role and booked a video interview.",
     "key_points": [
-      "The customer initially provided an incorrect order number but corrected it to ORD-104233.",
-      "The Aurora wireless headphones arrived with a cracked ear cup.",
-      "The agent created ticket TCK-651873 with medium urgency."
+      "She has a valid work permit and can commute to Getafe using her own transport.",
+      "She is available for rotating morning and afternoon shifts and can start immediately.",
+      "She split her supermarket team into pairs to unload late delivery trucks before opening.",
+      "She stopped work and reported a leaning pallet near an emergency exit.",
+      "She asked if she is allowed to bring her dog to work."
     ],
-    "customer_sentiment": "neutral",
-    "next_action": "Contact the customer to resolve the issue with the damaged headphones.",
+    "candidate_sentiment": "positive",
+    "next_action": "Conduct the video interview on November 12th at 12:30 PM and answer her question about the dog policy.",
     "generated_by": "gemini-3.5-flash"
   }
 }

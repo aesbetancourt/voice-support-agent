@@ -1,18 +1,17 @@
-"""Inbound adapter for voice: browser (WebRTC) → Google STT → Gemini → Google TTS.
+"""Inbound adapter for voice: browser (WebRTC) → STT → Gemini → TTS.
 
 Run with ``screening-agent voice`` or ``python -m screening_agent.adapters.inbound.voice``,
 then open http://localhost:7860. The Pipecat development runner serves the
 prebuilt browser client and the WebRTC signaling endpoint.
 Each browser connection gets its own pipeline, screening and saved record.
+The STT and TTS services come from ``speech.py``, chosen by ``STT_PROVIDER`` and ``TTS_PROVIDER``.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 from datetime import date
-from typing import Any
 
 from google.auth.exceptions import GoogleAuthError
 from loguru import logger
@@ -48,15 +47,24 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.processors.frameworks.rtvi.processor import RTVIProcessor
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.utils import create_transport
-from pipecat.services.google.stt import GoogleSTTService
-from pipecat.services.google.tts import GoogleTTSService
 from pipecat.services.google.vertex.llm import GoogleVertexLLMService
 from pipecat.services.llm_service import FunctionCallParams
-from pipecat.transcriptions.language import Language as PipecatLanguage
+from pipecat.services.stt_service import STTService
+from pipecat.services.tts_service import TTSService
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.turns.user_stop.base_user_turn_stop_strategy import BaseUserTurnStopStrategy
 from pipecat.workers.runner import WorkerRunner
 
+from screening_agent.adapters.constants import (
+    CLIENT_LANGUAGE_KEY,
+    DEVELOPER_ROLE,
+    END_REASON_CLOSED,
+    GOOGLE_LANGUAGE_CODE_ATTR,
+    SERVER_MESSAGE_FRUSTRATION,
+    SERVER_MESSAGE_LANGUAGE,
+    WEBRTC_TRANSPORT,
+)
+from screening_agent.adapters.inbound.speech import build_stt, build_tts, tts_language_update
 from screening_agent.adapters.outbound.gemini import ThoughtTagStripper, make_client
 from screening_agent.application.prompts import (
     agent_note,
@@ -73,54 +81,15 @@ from screening_agent.bootstrap import (
     make_summarizer,
     new_conversation,
 )
-from screening_agent.config import AGENT_TEMPERATURE, ConfigError, Settings
+from screening_agent.config import ConfigError, Settings
 from screening_agent.domain.models import JobPosting, Language
 from screening_agent.domain.validators import language_switch, parse_language
-
-# One recognizer for every language: Chirp 3 detects the language of each utterance,
-# so the candidate can switch during the call. It is served from regional locations only.
-# latest_long misheard fluent Spanish codes and numbers; chirp_3 got them right in both
-# languages. See ADR-0008 and ADR-0009.
-STT_MODEL = "chirp_3"
-STT_LOCATION = "us"
-
-
-@dataclass(frozen=True)
-class VoiceProfile:
-    """Speech settings for one conversation language."""
-
-    stt_language: PipecatLanguage
-    tts_voice: str
-    # Phrases that speech recognition must favor: the company and the screening words.
-    phrase_hints: list[dict[str, Any]]
-
-
-# Phrase boosts stay low: Gemini reads the meaning from free speech, so the hints only
-# help with names and terms that speech recognition does not know.
-VOICE_PROFILES = {
-    Language.EN: VoiceProfile(
-        stt_language=PipecatLanguage.EN_US,
-        tts_voice="en-US-Chirp3-HD-Aoede",
-        phrase_hints=[
-            {"value": word, "boost": 8.0}
-            for word in ("Harbor Logistics", "work permit", "forklift", "Getafe", "shift")
-        ],
-    ),
-    Language.ES: VoiceProfile(
-        stt_language=PipecatLanguage.ES_US,
-        tts_voice="es-US-Chirp3-HD-Aoede",
-        phrase_hints=[
-            {"value": word, "boost": 8.0}
-            for word in ("Harbor Logistics", "permiso de trabajo", "carretilla", "Getafe", "turno")
-        ],
-    ),
-}
 
 
 def session_language(runner_args: RunnerArguments, default: Language) -> Language:
     """The language for one session: ``{"language": "es"}`` in the client body, else the default."""
     body = runner_args.body if isinstance(runner_args.body, dict) else {}
-    raw = body.get("language")
+    raw = body.get(CLIENT_LANGUAGE_KEY)
     if not raw:
         return default
     try:
@@ -163,7 +132,7 @@ def make_tool_handler(
         if on_closing is not None:
             on_closing(outcome.closing_message)
         await params.llm.push_frame(TTSSpeakFrame(outcome.closing_message))
-        await params.llm.push_frame(EndWorkerFrame(reason="conversation closed"))
+        await params.llm.push_frame(EndWorkerFrame(reason=END_REASON_CLOSED))
 
     return handle
 
@@ -188,7 +157,7 @@ def make_guidance_sender(
         if guidance is None:
             return
         # run_llm=False: the guidance shapes the next reply; it does not trigger a new one.
-        message = {"role": "developer", "content": agent_note(guidance)}
+        message = {"role": DEVELOPER_ROLE, "content": agent_note(guidance)}
         try:
             await queue_frames([LLMMessagesAppendFrame(messages=[message], run_llm=False)])
         except Exception as exc:  # noqa: BLE001 - the call can end while the task runs
@@ -197,23 +166,11 @@ def make_guidance_sender(
     return send
 
 
-def tts_settings(language: Language) -> GoogleTTSService.Settings:
-    profile = VOICE_PROFILES[language]
-    # Set the language too: the service defaults its language code to en-US.
-    return GoogleTTSService.Settings(voice=profile.tts_voice, language=profile.stt_language)
-
-
-def stt_languages(language: Language) -> list[PipecatLanguage]:
-    """Every supported language, the session language first (Google's primary language)."""
-    others = [p.stt_language for lang, p in VOICE_PROFILES.items() if lang is not language]
-    return [VOICE_PROFILES[language].stt_language, *others]
-
-
-def language_switch_frames(language: Language) -> list[Frame]:
+def language_switch_frames(settings: Settings, language: Language) -> list[Frame]:
     """Frames that move the rest of the pipeline to a new candidate language."""
-    note = {"role": "developer", "content": agent_note(language_switch_note(language))}
+    note = {"role": DEVELOPER_ROLE, "content": agent_note(language_switch_note(language))}
     return [
-        TTSUpdateSettingsFrame(delta=tts_settings(language)),
+        TTSUpdateSettingsFrame(delta=tts_language_update(settings, language)),
         # run_llm=False: the note shapes the reply to the turn that is in progress.
         LLMMessagesAppendFrame(messages=[note], run_llm=False),
     ]
@@ -228,21 +185,22 @@ class LanguageSwitcher(FrameProcessor):
 
     def __init__(
         self,
+        settings: Settings,
         language: Language,
         on_switch: Callable[[Language], Awaitable[None]],
     ) -> None:
         super().__init__()
         self.language = language
+        self._settings = settings
         self._on_switch = on_switch
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
         if isinstance(frame, TranscriptionFrame):
-            detected = getattr(frame.result, "language_code", None)
-            new_language = language_switch(self.language, detected, frame.text)
+            new_language = language_switch(self.language, detected_language(frame), frame.text)
             if new_language is not None:
                 self.language = new_language
-                for update in language_switch_frames(new_language):
+                for update in language_switch_frames(self._settings, new_language):
                     await self.push_frame(update, direction)
                 await self._on_switch(new_language)
         await self.push_frame(frame, direction)
@@ -274,38 +232,43 @@ class ThoughtTagFilter(FrameProcessor):
         await self.push_frame(frame, direction)
 
 
+def detected_language(frame: TranscriptionFrame) -> str | None:
+    """The language that STT detected for one utterance, from Google or Deepgram."""
+    # Google puts the detected code on its raw result; Deepgram puts it on the frame.
+    google_code = getattr(frame.result, GOOGLE_LANGUAGE_CODE_ATTR, None)
+    if google_code:
+        return str(google_code)
+    if frame.language is not None:
+        return str(getattr(frame.language, "value", frame.language))
+    return None
+
+
 def build_services(
     settings: Settings, language: Language, job: JobPosting, today: date
-) -> tuple[GoogleSTTService, GoogleVertexLLMService, GoogleTTSService]:
+) -> tuple[STTService, GoogleVertexLLMService, TTSService]:
     project_id = settings.require_project()
-    hints = {
-        hint["value"]: hint for profile in VOICE_PROFILES.values() for hint in profile.phrase_hints
-    }
-    adaptation = (
-        {"phrase_sets": [{"phrases": list(hints.values())}]} if settings.stt_phrase_hints else None
-    )
-    stt = GoogleSTTService(
-        location=STT_LOCATION,
-        settings=GoogleSTTService.Settings(
-            languages=stt_languages(language), model=STT_MODEL, adaptation=adaptation
-        ),
-    )
+    gemini = settings.gemini
+    stt = build_stt(settings, language)
     llm = GoogleVertexLLMService(
         project_id=project_id,
-        location=settings.location,
+        location=gemini.location,
         settings=GoogleVertexLLMService.Settings(
-            model=settings.model,
+            model=gemini.model,
             system_instruction=system_prompt("voice", job, today, language, switchable=True),
-            temperature=AGENT_TEMPERATURE,
+            temperature=gemini.temperature,
         ),
     )
-    tts = GoogleTTSService(settings=tts_settings(language))
+    tts = build_tts(settings, language)
     return stt, llm, tts
 
 
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> None:
-    settings = Settings.from_env()
-    language = session_language(runner_args, settings.default_language)
+    try:
+        settings = Settings.from_env()
+    except ConfigError as exc:
+        logger.error(f"Cannot start the voice bot: {exc}")
+        return
+    language = session_language(runner_args, settings.app.default_language)
     try:
         client = make_client(settings)
         summarizer = make_summarizer(settings, client)
@@ -325,7 +288,10 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     # Build the job search index while Ava greets, so the first question does not wait.
     warm_up = asyncio.create_task(_warm_up_knowledge(settings))
     recorder = conversation.recorder
-    logger.info(f"Starting voice conversation {recorder.id} in {language.value}")
+    logger.info(
+        f"Starting voice conversation {recorder.id} in {language.value} "
+        f"(STT: {settings.stt.provider.value}, TTS: {settings.tts.provider.value})"
+    )
 
     # The closing message is recorded when the tool runs, because the call can end before
     # the assistant turn event fires. Skip it if that event reports it again later.
@@ -344,12 +310,12 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         logger.info(f"Candidate language switched to {new_language.value}")
         try:
             await worker.rtvi.send_server_message(
-                {"type": "language", "language": new_language.value}
+                {"type": SERVER_MESSAGE_LANGUAGE, "language": new_language.value}
             )
         except Exception as exc:  # noqa: BLE001 - the display is optional
             logger.debug(f"Language switch not shown: {exc!r}")
 
-    switcher = LanguageSwitcher(language, on_language_switch)
+    switcher = LanguageSwitcher(settings, language, on_language_switch)
 
     context = LLMContext(tools=build_tools_schema())
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
@@ -379,7 +345,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
 
     @worker.rtvi.event_handler("on_client_ready")
     async def on_client_ready(rtvi: RTVIProcessor) -> None:
-        context.add_message({"role": "developer", "content": greeting_trigger(job, language)})
+        context.add_message({"role": DEVELOPER_ROLE, "content": greeting_trigger(job, language)})
         await worker.queue_frames([LLMRunFrame()])
 
     @transport.event_handler("on_client_disconnected")
@@ -392,7 +358,11 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         reading = recorder.sentiment_at(turn_index)
         if reading is not None:
             await worker.rtvi.send_server_message(
-                {"type": "frustration", "turn": turn_index, **reading.model_dump(mode="json")}
+                {
+                    "type": SERVER_MESSAGE_FRUSTRATION,
+                    "turn": turn_index,
+                    **reading.model_dump(mode="json"),
+                }
             )
 
     # Frustration readings run in the background, so they never delay Ava's reply.
@@ -448,7 +418,7 @@ async def _warm_up_knowledge(settings: Settings) -> None:
 async def bot(runner_args: RunnerArguments) -> None:
     """Entry point that the Pipecat development runner calls for each session."""
     transport_params = {
-        "webrtc": lambda: TransportParams(audio_in_enabled=True, audio_out_enabled=True),
+        WEBRTC_TRANSPORT: lambda: TransportParams(audio_in_enabled=True, audio_out_enabled=True),
     }
     transport = await create_transport(runner_args, transport_params)
     await run_bot(transport, runner_args)
