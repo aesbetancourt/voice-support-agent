@@ -73,7 +73,7 @@ These are the design. Keep them true in every change:
 ## Docs and commits
 
 - Write docs, comments and commit messages in Simplified Technical English: short sentences, active voice.
-- Record a decision that is hard to reverse as a new ADR in `docs/adr/`. Update the feature docs in
-  `docs/features/`, and the checklist in `docs/spec.md`, when the behaviour they describe changes.
+- Record a decision that is hard to reverse as a new ADR in `docs/adr/`. Update the README, the feature
+  docs in `docs/features/` and `docs/how-it-works.md` when the behaviour they describe changes.
 - Commit messages: an imperative subject under 72 characters, then a short body that says why.
 - Commit only what Git tracks on purpose. `.env`, `conversations/` and `docs/private/` stay local.
