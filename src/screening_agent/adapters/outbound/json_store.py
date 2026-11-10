@@ -6,7 +6,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from support_agent.domain.models import ConversationRecord
+from screening_agent.domain.models import ConversationRecord
 
 
 class JsonConversationStore:

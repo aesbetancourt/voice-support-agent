@@ -8,8 +8,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from support_agent.domain.models import Language
-from support_agent.domain.validators import parse_language
+from screening_agent.domain.models import Language
+from screening_agent.domain.validators import parse_language
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -28,9 +28,13 @@ class Settings:
     model: str
     summary_model: str
     sentiment_model: str
+    judge_model: str
     default_language: Language
+    embedding_model: str
+    embedding_location: str
     stt_phrase_hints: bool
-    orders_path: Path
+    job_path: Path
+    knowledge_path: Path
     conversations_dir: Path
     max_field_attempts: int
 
@@ -44,9 +48,17 @@ class Settings:
             model=model,
             summary_model=os.getenv("GEMINI_SUMMARY_MODEL", model),
             sentiment_model=os.getenv("GEMINI_SENTIMENT_MODEL", "gemini-3.5-flash-lite"),
+            # The judge runs offline, so a slower model is fine.
+            judge_model=os.getenv("GEMINI_JUDGE_MODEL", model),
             default_language=parse_language(os.getenv("DEFAULT_LANGUAGE", "en")),
+            embedding_model=os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001"),
+            # Embedding models are served from regional locations, not from "global".
+            embedding_location=os.getenv("EMBEDDING_LOCATION", "us-central1"),
             stt_phrase_hints=os.getenv("GOOGLE_STT_PHRASE_HINTS", "true").lower() != "false",
-            orders_path=Path(os.getenv("ORDERS_PATH", PROJECT_ROOT / "data" / "orders.json")),
+            job_path=Path(os.getenv("JOB_PATH", PROJECT_ROOT / "data" / "job.json")),
+            knowledge_path=Path(
+                os.getenv("KNOWLEDGE_PATH", PROJECT_ROOT / "data" / "job_knowledge.json")
+            ),
             conversations_dir=Path(os.getenv("CONVERSATIONS_DIR", PROJECT_ROOT / "conversations")),
             max_field_attempts=int(os.getenv("MAX_FIELD_ATTEMPTS", "3")),
         )

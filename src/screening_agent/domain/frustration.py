@@ -10,7 +10,7 @@ so the reaction is deterministic and testable (see ADR-0001 and ADR-0007).
 
 from __future__ import annotations
 
-from support_agent.domain.models import FrustrationAction, Sentiment
+from screening_agent.domain.models import FrustrationAction, Sentiment
 
 # The scale is defined in SENTIMENT_INSTRUCTION: 0.6 clearly frustrated, 0.8 angry.
 HIGH_FRUSTRATION = 0.7

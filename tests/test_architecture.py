@@ -9,27 +9,27 @@ from pathlib import Path
 
 import pytest
 
-PACKAGE = Path(__file__).resolve().parents[1] / "src" / "support_agent"
+PACKAGE = Path(__file__).resolve().parents[1] / "src" / "screening_agent"
 
 # Imports each layer must never use, by module prefix.
 FORBIDDEN = {
     "domain": [
-        "support_agent.application",
-        "support_agent.adapters",
-        "support_agent.bootstrap",
-        "support_agent.config",
+        "screening_agent.application",
+        "screening_agent.adapters",
+        "screening_agent.bootstrap",
+        "screening_agent.config",
         "pipecat",
         "google",
         "loguru",
     ],
     "application": [
-        "support_agent.adapters",
-        "support_agent.bootstrap",
-        "support_agent.config",
+        "screening_agent.adapters",
+        "screening_agent.bootstrap",
+        "screening_agent.config",
         "pipecat",
         "google",
     ],
-    "adapters/outbound": ["support_agent.adapters.inbound", "support_agent.bootstrap"],
+    "adapters/outbound": ["screening_agent.adapters.inbound", "screening_agent.bootstrap"],
 }
 
 

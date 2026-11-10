@@ -1,8 +1,9 @@
 # CLAUDE.md
 
-Instructions for coding agents in this repository: a voice customer-support agent (Pipecat, Google Cloud
-Speech-to-Text and Text-to-Speech, Gemini on Vertex AI). Read [`docs/how-it-works.md`](docs/how-it-works.md)
-for the system, and the matching [`docs/adr/`](docs/adr/) record before you change a decision it covers.
+Instructions for coding agents in this repository: a voice recruiting agent that runs candidate
+screening calls (Pipecat, Google Cloud Speech-to-Text and Text-to-Speech, Gemini and embeddings on
+Vertex AI). Read [`docs/how-it-works.md`](docs/how-it-works.md) for the system, and the matching
+[`docs/adr/`](docs/adr/) record before you change a decision it covers.
 
 ## Gates
 
@@ -15,17 +16,18 @@ uv run pytest
 ```
 
 A change to prompts, tools or the agent loop also needs a live run against Gemini, with a configured
-`.env`: `uv run support-agent simulate` (all seven personas pass), plus `--language es`.
+`.env`: `uv run screening-agent simulate` (all eight personas pass, status and LLM judge), plus `--language es`.
 
 ## Architecture rules
 
 The code is hexagonal. Imports point inward only: `adapters` → `application` → `domain`.
 `tests/test_architecture.py` enforces it.
 
-- **domain/** holds pure rules: models, validators, the `TicketSession` state machine, `FrustrationPolicy`.
+- **domain/** holds pure rules: models, validators, the `ScreeningSession` state machine, `FrustrationPolicy`.
   It imports nothing from the project and no SDK.
 - **application/** holds use cases and the ports (`ports.py`). It imports the domain and its own ports.
-- **adapters/** hold every SDK: Pipecat and Google in `inbound/voice.py`, `google-genai` in `outbound/gemini.py`.
+- **adapters/** hold every SDK: Pipecat and Google in `inbound/voice.py`, `google-genai` in `outbound/gemini.py`
+  and `outbound/embeddings_knowledge.py`.
 - **bootstrap.py** builds each conversation: it wires the outbound adapters to the ports.
   The voice adapter also builds Pipecat's Google services, which call Google directly (ADR-0004).
 
@@ -35,14 +37,17 @@ A new external system gets a port in `application/ports.py` and an adapter in `a
 
 These are the design. Keep them true in every change:
 
-- **The code owns the ticket.** Gemini proposes values only through the tools in `application/tools.py`.
-  `TicketSession` validates every value and decides the stage. A new rule goes in the domain, with a test.
-- **Closing messages are fixed text** from `application/messages.py`, with the ticket ID from code.
+- **The code owns the outcome.** Gemini proposes values only through the tools in `application/tools.py`.
+  `ScreeningSession` validates every value, decides the stage and calculates the recommendation.
+  A new rule goes in the domain, with a test.
+- **Closing messages are fixed text** from `application/messages.py`, with the booking time and reference from code.
   Every language has every message.
-- **Optional features never break a call.** Sentiment, the summary, the frustration display and the language
-  display fail to a safe default. Each broad `except Exception` carries `# noqa: BLE001 - <reason>`.
+- **Optional features never break a call.** Sentiment, the summary, the job search, the frustration display and
+  the language display fail to a safe default. Each broad `except Exception` carries `# noqa: BLE001 - <reason>`.
 - **The internal language is English**: tool results, enum values, frustration reasons and the summary.
-  Only what the customer hears is translated.
+  Only what the candidate hears is translated. Evidence quotes keep the candidate's own words.
+- **Ava never says an assessment.** No score, recommendation or requirement result reaches the candidate.
+  She never asks about protected topics (age, nationality, health, family).
 - **Fakes, not network, in tests.** Unit tests use the fakes in `tests/`, so `pytest` runs offline.
 
 ## Python conventions
@@ -51,8 +56,8 @@ These are the design. Keep them true in every change:
   generics (`list[str]`) and `X | None`.
 - Use `enum.StrEnum` for string enums. Use Pydantic models for data that is validated or saved
   (`domain/models.py`), and frozen dataclasses for plain values, such as the port types.
-- Network calls are async. Give every optional call a timeout: `asyncio.wait_for` for sentiment, and
-  the client timeout for Gemini. The JSON store writes small files synchronously, after each turn.
+- Network calls are async. Give every optional call a timeout: `asyncio.wait_for` for sentiment and the job
+  search, and the client timeout for Gemini. The JSON store writes small files synchronously, after each turn.
 - Log with `loguru`'s `logger`. The CLI is the only module that prints.
 - Re-raise with `from exc` to keep the cause.
 - Name a constant for every threshold or limit, next to the code that uses it, with a one-line reason.

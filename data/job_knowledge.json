@@ -1,0 +1,16 @@
+[
+  {"id": "pay", "text": "Pay: 1,580 euros gross per month, in 14 payments a year. Saturday shifts in peak season are paid at 1.5 times the normal rate."},
+  {"id": "shifts", "text": "Shifts rotate every week: the morning shift is 6:00 to 14:00 and the afternoon shift is 14:00 to 22:00, Monday to Friday. There are no night shifts. In peak season (November and December) some Saturdays are needed, and they are paid extra."},
+  {"id": "location", "text": "The warehouse is in the Getafe logistics park, in Madrid. Bus lines 441 and 442 stop at the entrance. There is free parking for cars and bikes. A free shuttle bus runs from Getafe Central station before each shift."},
+  {"id": "contract", "text": "The contract is full time, 40 hours a week. It starts as a 6-month contract and becomes permanent after a good review."},
+  {"id": "tasks", "text": "Daily tasks: picking customer orders with a hand scanner, packing them, labeling parcels, and loading trucks. The work includes lifting boxes of up to 15 kg and standing most of the shift."},
+  {"id": "training", "text": "New operators get 2 weeks of paid training. Harbor Logistics pays for the forklift licence for operators who want it, after 3 months."},
+  {"id": "equipment", "text": "Safety boots, gloves, a high-visibility vest and the uniform are provided free of charge."},
+  {"id": "holidays", "text": "Holidays: 23 working days a year, plus public holidays. The warehouse closes on 25 December and 1 January."},
+  {"id": "benefits", "text": "Benefits: a canteen with a subsidized menu, free coffee and fruit, and a transport allowance of 40 euros per month."},
+  {"id": "experience", "text": "No warehouse experience is required. Experience in teamwork, physical work, retail or hospitality is useful. A forklift licence is a plus, not a requirement."},
+  {"id": "language", "text": "Basic Spanish is enough for the job. Training and safety instructions are available in Spanish and English."},
+  {"id": "next_steps", "text": "After this call: a 30-minute video interview with the warehouse manager, then a 1-hour visit to the warehouse. A decision comes within one week of the visit."},
+  {"id": "overtime", "text": "Overtime is voluntary and paid at 1.25 times the normal rate. It is offered mostly in peak season."},
+  {"id": "breaks", "text": "Each 8-hour shift has a 30-minute paid break."}
+]

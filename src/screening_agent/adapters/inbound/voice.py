@@ -1,9 +1,9 @@
 """Inbound adapter for voice: browser (WebRTC) → Google STT → Gemini → Google TTS.
 
-Run with ``support-agent voice`` or ``python -m support_agent.adapters.inbound.voice``,
+Run with ``screening-agent voice`` or ``python -m screening_agent.adapters.inbound.voice``,
 then open http://localhost:7860. The Pipecat development runner serves the
 prebuilt browser client and the WebRTC signaling endpoint.
-Each browser connection gets its own pipeline, ticket and saved record.
+Each browser connection gets its own pipeline, screening and saved record.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 from google.auth.exceptions import GoogleAuthError
@@ -56,29 +57,30 @@ from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.turns.user_stop.base_user_turn_stop_strategy import BaseUserTurnStopStrategy
 from pipecat.workers.runner import WorkerRunner
 
-from support_agent.adapters.outbound.gemini import ThoughtTagStripper, make_client
-from support_agent.application.prompts import (
+from screening_agent.adapters.outbound.gemini import ThoughtTagStripper, make_client
+from screening_agent.application.prompts import (
     agent_note,
     greeting_trigger,
     language_switch_note,
     system_prompt,
 )
-from support_agent.application.sentiment import ANALYSIS_TIMEOUT_SECS, SentimentMonitor
-from support_agent.application.tools import TOOL_SPECS, ToolExecutor
-from support_agent.bootstrap import (
+from screening_agent.application.sentiment import ANALYSIS_TIMEOUT_SECS, SentimentMonitor
+from screening_agent.application.tools import TOOL_SPECS, ToolExecutor
+from screening_agent.bootstrap import (
     Conversation,
+    job_knowledge,
     make_sentiment_analyzer,
     make_summarizer,
     new_conversation,
 )
-from support_agent.config import AGENT_TEMPERATURE, ConfigError, Settings
-from support_agent.domain.models import Category, Language
-from support_agent.domain.validators import language_switch, parse_language
+from screening_agent.config import AGENT_TEMPERATURE, ConfigError, Settings
+from screening_agent.domain.models import JobPosting, Language
+from screening_agent.domain.validators import language_switch, parse_language
 
 # One recognizer for every language: Chirp 3 detects the language of each utterance,
-# so the customer can switch during the call. It is served from regional locations only.
-# latest_long misheard fluent Spanish order numbers ("O R D, uno cero cuatro…" became
-# "o Rd 1004"); chirp_3 got them right in both languages. See ADR-0008 and ADR-0009.
+# so the candidate can switch during the call. It is served from regional locations only.
+# latest_long misheard fluent Spanish codes and numbers; chirp_3 got them right in both
+# languages. See ADR-0008 and ADR-0009.
 STT_MODEL = "chirp_3"
 STT_LOCATION = "us"
 
@@ -89,32 +91,27 @@ class VoiceProfile:
 
     stt_language: PipecatLanguage
     tts_voice: str
-    # Phrases that speech recognition must favor: the order prefix and the category names.
+    # Phrases that speech recognition must favor: the company and the screening words.
     phrase_hints: list[dict[str, Any]]
 
 
-# Phrase boosts: the order prefix most, because a misheard ORD fails the lookup;
-# category words least, because Gemini maps them from free speech anyway.
+# Phrase boosts stay low: Gemini reads the meaning from free speech, so the hints only
+# help with names and terms that speech recognition does not know.
 VOICE_PROFILES = {
     Language.EN: VoiceProfile(
         stt_language=PipecatLanguage.EN_US,
-        tts_voice="en-US-Chirp3-HD-Charon",
+        tts_voice="en-US-Chirp3-HD-Aoede",
         phrase_hints=[
-            {"value": "ORD", "boost": 15.0},
-            {"value": "order number", "boost": 10.0},
-            *({"value": c.value.replace("_", " "), "boost": 5.0} for c in Category),
+            {"value": word, "boost": 8.0}
+            for word in ("Harbor Logistics", "work permit", "forklift", "Getafe", "shift")
         ],
     ),
     Language.ES: VoiceProfile(
         stt_language=PipecatLanguage.ES_US,
-        tts_voice="es-US-Chirp3-HD-Charon",
+        tts_voice="es-US-Chirp3-HD-Aoede",
         phrase_hints=[
-            {"value": "ORD", "boost": 15.0},
-            {"value": "número de pedido", "boost": 10.0},
-            *(
-                {"value": word, "boost": 5.0}
-                for word in ("envío", "factura", "defectuoso", "devolución", "reembolso", "cuenta")
-            ),
+            {"value": word, "boost": 8.0}
+            for word in ("Harbor Logistics", "permiso de trabajo", "carretilla", "Getafe", "turno")
         ],
     ),
 }
@@ -153,7 +150,7 @@ def make_tool_handler(
     """Return a Pipecat function handler that runs every tool through the executor."""
 
     async def handle(params: FunctionCallParams) -> None:
-        outcome = executor.execute(params.function_name, dict(params.arguments or {}))
+        outcome = await executor.execute(params.function_name, dict(params.arguments or {}))
         if outcome.closing_message is None:
             await params.result_callback(outcome.payload)
             return
@@ -177,10 +174,10 @@ def make_guidance_sender(
     queue_frames: Callable[[list[Frame]], Awaitable[None]],
     on_reading: Callable[[int], Awaitable[None]] | None = None,
 ) -> Callable[[int | None, str], Awaitable[None]]:
-    """Return a task body: rate one customer turn, then add any guidance to the LLM context."""
+    """Return a task body: rate one candidate turn, then add any guidance to the LLM context."""
 
-    async def send(turn_index: int | None, customer_text: str) -> None:
-        guidance = await monitor.observe(turn_index, customer_text)
+    async def send(turn_index: int | None, candidate_text: str) -> None:
+        guidance = await monitor.observe(turn_index, candidate_text)
         if is_closed():
             return
         if on_reading is not None and turn_index is not None:
@@ -213,7 +210,7 @@ def stt_languages(language: Language) -> list[PipecatLanguage]:
 
 
 def language_switch_frames(language: Language) -> list[Frame]:
-    """Frames that move the rest of the pipeline to a new customer language."""
+    """Frames that move the rest of the pipeline to a new candidate language."""
     note = {"role": "developer", "content": agent_note(language_switch_note(language))}
     return [
         TTSUpdateSettingsFrame(delta=tts_settings(language)),
@@ -226,7 +223,7 @@ class LanguageSwitcher(FrameProcessor):
     """Follow the language that speech recognition detects in each final transcript.
 
     It sits between STT and the user aggregator, so the voice change and the note for
-    Gemini go downstream before the customer's words reach the LLM.
+    Gemini go downstream before the candidate's words reach the LLM.
     """
 
     def __init__(
@@ -278,7 +275,7 @@ class ThoughtTagFilter(FrameProcessor):
 
 
 def build_services(
-    settings: Settings, language: Language
+    settings: Settings, language: Language, job: JobPosting, today: date
 ) -> tuple[GoogleSTTService, GoogleVertexLLMService, GoogleTTSService]:
     project_id = settings.require_project()
     hints = {
@@ -298,7 +295,7 @@ def build_services(
         location=settings.location,
         settings=GoogleVertexLLMService.Settings(
             model=settings.model,
-            system_instruction=system_prompt("voice", language, switchable=True),
+            system_instruction=system_prompt("voice", job, today, language, switchable=True),
             temperature=AGENT_TEMPERATURE,
         ),
     )
@@ -310,10 +307,14 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     settings = Settings.from_env()
     language = session_language(runner_args, settings.default_language)
     try:
-        stt, llm, tts = build_services(settings, language)
         client = make_client(settings)
         summarizer = make_summarizer(settings, client)
         sentiment_analyzer = make_sentiment_analyzer(settings, client)
+        conversation: Conversation = new_conversation(
+            settings, "voice", summarizer, sentiment_analyzer, language
+        )
+        job, today = conversation.session.job, conversation.session.today
+        stt, llm, tts = build_services(settings, language, job, today)
     except (ConfigError, GoogleAuthError) as exc:
         logger.error(
             f"Cannot start the voice bot: {exc}. Set GOOGLE_CLOUD_PROJECT in .env and run "
@@ -321,9 +322,8 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         )
         return
 
-    conversation: Conversation = new_conversation(
-        settings, "voice", summarizer, sentiment_analyzer, language
-    )
+    # Build the job search index while Ava greets, so the first question does not wait.
+    warm_up = asyncio.create_task(_warm_up_knowledge(settings))
     recorder = conversation.recorder
     logger.info(f"Starting voice conversation {recorder.id} in {language.value}")
 
@@ -338,10 +338,10 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     llm.register_function(None, make_tool_handler(conversation.executor, on_closing=record_closing))
 
     async def on_language_switch(new_language: Language) -> None:
-        # Closing messages and the saved record follow the customer's language.
+        # Closing messages and the saved record follow the candidate's language.
         conversation.executor.language = new_language
         recorder.language = new_language
-        logger.info(f"Customer language switched to {new_language.value}")
+        logger.info(f"Candidate language switched to {new_language.value}")
         try:
             await worker.rtvi.send_server_message(
                 {"type": "language", "language": new_language.value}
@@ -379,7 +379,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
 
     @worker.rtvi.event_handler("on_client_ready")
     async def on_client_ready(rtvi: RTVIProcessor) -> None:
-        context.add_message({"role": "developer", "content": greeting_trigger(language)})
+        context.add_message({"role": "developer", "content": greeting_trigger(job, language)})
         await worker.queue_frames([LLMRunFrame()])
 
     @transport.event_handler("on_client_disconnected")
@@ -433,8 +433,16 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         # Let readings in progress finish, so the saved record includes them.
         if sentiment_tasks:
             await asyncio.wait(set(sentiment_tasks), timeout=ANALYSIS_TIMEOUT_SECS)
+        warm_up.cancel()
         record = await recorder.finish()
         logger.info(f"Saved conversation {record.id} ({record.status.value}): {recorder.location}")
+
+
+async def _warm_up_knowledge(settings: Settings) -> None:
+    try:
+        await job_knowledge(settings).warm_up()
+    except Exception as exc:  # noqa: BLE001 - search falls back to the recruiter; never break
+        logger.warning(f"Job knowledge index not built at start: {exc!r}")
 
 
 async def bot(runner_args: RunnerArguments) -> None:

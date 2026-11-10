@@ -1,4 +1,4 @@
-"""Inbound adapter: the command line, ``support-agent chat | voice | simulate``."""
+"""Inbound adapter: the command line, ``screening-agent chat | voice | simulate``."""
 
 from __future__ import annotations
 
@@ -11,22 +11,22 @@ from google.auth.exceptions import GoogleAuthError
 from google.genai import errors as genai_errors
 from loguru import logger
 
-from support_agent.adapters.inbound.simulate import PERSONAS, run_persona
-from support_agent.adapters.outbound.gemini import make_client
-from support_agent.application.messages import technical_error_message
-from support_agent.bootstrap import (
+from screening_agent.adapters.inbound.simulate import PERSONAS, run_persona
+from screening_agent.adapters.outbound.gemini import make_client
+from screening_agent.application.messages import technical_error_message
+from screening_agent.bootstrap import (
     make_sentiment_analyzer,
     make_summarizer,
     make_text_agent,
     new_conversation,
 )
-from support_agent.config import ConfigError, Settings
-from support_agent.domain.models import ConversationRecord, Language
-from support_agent.domain.validators import parse_language
+from screening_agent.config import ConfigError, Settings
+from screening_agent.domain.models import ConversationRecord, Language
+from screening_agent.domain.validators import parse_language
 
-# A long complaint fits easily; a pasted document does not reach the model.
+# A long answer fits easily; a pasted document does not reach the model.
 MAX_INPUT_CHARS = 2000
-VOICE_MODULE = "support_agent.adapters.inbound.voice"
+VOICE_MODULE = "screening_agent.adapters.inbound.voice"
 _QUIT_COMMANDS = {"/quit", "/exit"}
 
 
@@ -39,7 +39,7 @@ async def run_chat(settings: Settings) -> None:
         make_sentiment_analyzer(settings, client),
     )
     agent = make_text_agent(settings, client, conversation)
-    print("Acme Store support chat. Type /quit to leave.\n")
+    print("Harbor Logistics screening chat. Type /quit to leave.\n")
     # Config, auth and model errors show up here, before anything is saved.
     reply = await agent.greet()
     print(f"agent> {reply.text}\n")
@@ -64,7 +64,9 @@ async def run_chat(settings: Settings) -> None:
         _print_record(record, conversation.recorder.location)
 
 
-async def run_simulations(settings: Settings, persona_name: str, max_turns: int) -> int:
+async def run_simulations(
+    settings: Settings, persona_name: str, max_turns: int, with_judge: bool
+) -> int:
     personas = [p for p in PERSONAS if persona_name in ("all", p.name)]
     if not personas:
         names = ", ".join(p.name for p in PERSONAS)
@@ -74,13 +76,15 @@ async def run_simulations(settings: Settings, persona_name: str, max_turns: int)
     client = make_client(settings)
     failures = 0
     for persona in personas:
-        result = await run_persona(settings, client, persona, max_turns)
+        result = await run_persona(settings, client, persona, max_turns, with_judge)
         mark = "PASS" if result.passed else "FAIL"
         failures += not result.passed
         print(
-            f"{mark}  {persona.name:<20} expected={persona.expected.value:<10} "
-            f"got={result.record.status.value:<10} turns={result.turns:<3} id={result.record.id}"
+            f"{mark}  {persona.name:<20} expected={persona.expected.value:<12} "
+            f"got={result.record.status.value:<12} turns={result.turns:<3} id={result.record.id}"
         )
+        for criterion, reason in (result.verdict.failures() if result.verdict else {}).items():
+            print(f"      judge: {criterion}: {reason}")
     print(f"\n{len(personas) - failures}/{len(personas)} personas passed.")
     return 1 if failures else 0
 
@@ -88,7 +92,10 @@ async def run_simulations(settings: Settings, persona_name: str, max_turns: int)
 def _print_record(record: ConversationRecord, location: str) -> None:
     print("-" * 60)
     print(f"Status: {record.status.value} ({record.language.value})")
-    print(f"Ticket: {record.ticket.model_dump_json(exclude_none=True)}")
+    card = record.scorecard
+    print(f"Candidate: {card.candidate_name or '?'}  Recommendation: {card.recommendation.value}")
+    if card.interview:
+        print(f"Interview: {card.interview.starts_at:%A %Y-%m-%d %H:%M} ({card.booking_id})")
     if record.summary:
         print(f"Summary: {record.summary.headline}")
     print(f"Saved:  {location}")
@@ -110,17 +117,20 @@ def _run_voice(extra_args: list[str]) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="support-agent", description=__doc__)
+    parser = argparse.ArgumentParser(prog="screening-agent", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     chat = commands.add_parser("chat", help="Talk to the agent by text in the terminal.")
     voice = commands.add_parser(
         "voice",
         help="Start the voice server (open http://localhost:7860). Extra args go to Pipecat.",
     )
-    simulate = commands.add_parser("simulate", help="Run simulated customers against the agent.")
+    simulate = commands.add_parser("simulate", help="Run simulated candidates against the agent.")
     simulate.add_argument("--persona", default="all", help="Persona name, or 'all'.")
     # A long enough limit for every persona; it stops a simulation that never ends.
-    simulate.add_argument("--max-turns", type=int, default=16)
+    simulate.add_argument("--max-turns", type=int, default=24)
+    simulate.add_argument(
+        "--no-judge", action="store_true", help="Check the final status only, without the judge."
+    )
     for command in (chat, voice, simulate):
         command.add_argument(
             "--language",
@@ -145,7 +155,10 @@ def main(argv: list[str] | None = None) -> None:
         if args.command == "chat":
             asyncio.run(run_chat(settings))
         else:
-            sys.exit(asyncio.run(run_simulations(settings, args.persona, args.max_turns)))
+            exit_code = asyncio.run(
+                run_simulations(settings, args.persona, args.max_turns, not args.no_judge)
+            )
+            sys.exit(exit_code)
     except ConfigError as exc:
         sys.exit(f"Configuration error: {exc}")
     except GoogleAuthError as exc:

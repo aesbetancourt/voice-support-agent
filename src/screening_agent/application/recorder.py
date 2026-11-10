@@ -10,8 +10,8 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from support_agent.application.ports import ConversationStore, Summarizer
-from support_agent.domain.models import (
+from screening_agent.application.ports import ConversationStore, Summarizer
+from screening_agent.domain.models import (
     ConversationRecord,
     ConversationStatus,
     Language,
@@ -21,12 +21,13 @@ from support_agent.domain.models import (
     Turn,
     utc_now,
 )
-from support_agent.domain.state import TicketSession
+from screening_agent.domain.state import ScreeningSession
 
 _STATUS_BY_STAGE = {
-    Stage.COMPLETED: ConversationStatus.COMPLETED,
+    Stage.BOOKED: ConversationStatus.BOOKED,
+    Stage.NOT_ELIGIBLE: ConversationStatus.NOT_ELIGIBLE,
     Stage.ESCALATED: ConversationStatus.ESCALATED,
-    Stage.ENDED: ConversationStatus.ABANDONED,
+    Stage.ENDED: ConversationStatus.ENDED,
 }
 
 
@@ -34,7 +35,7 @@ class ConversationRecorder:
     def __init__(
         self,
         channel: Literal["text", "voice"],
-        session: TicketSession,
+        session: ScreeningSession,
         store: ConversationStore,
         summarizer: Summarizer,
         language: Language = Language.EN,
@@ -67,6 +68,10 @@ class ConversationRecorder:
         self._store.save(self.build_record())
         return len(self._transcript) - 1
 
+    def candidate_texts(self) -> list[str]:
+        """Everything the candidate said, for the evidence quote check."""
+        return [turn.text for turn in self._transcript if turn.role == "user"]
+
     def turns_before(self, index: int, limit: int) -> list[Turn]:
         return list(self._transcript[max(0, index - limit) : index])
 
@@ -86,7 +91,7 @@ class ConversationRecorder:
         if ended_at is None:
             status = ConversationStatus.IN_PROGRESS
         else:
-            # A conversation that ends while still open was dropped by the customer.
+            # A conversation that ends while still open was dropped by the candidate.
             status = _STATUS_BY_STAGE.get(session.stage, ConversationStatus.ABANDONED)
         return ConversationRecord(
             id=self.id,
@@ -96,9 +101,9 @@ class ConversationRecorder:
             stage=session.stage,
             started_at=self._started_at,
             ended_at=ended_at,
-            ticket=session.ticket.model_copy(),
-            order=session.order,
-            escalation_reason=session.escalation_reason,
+            job_id=session.job.id,
+            scorecard=session.scorecard.model_copy(deep=True),
+            close_reason=session.close_reason,
             transcript=[turn.model_copy() for turn in self._transcript],
             tool_calls=list(self._tool_calls),
             validation_events=list(session.validation_events),

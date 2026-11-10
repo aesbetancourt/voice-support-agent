@@ -11,12 +11,12 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from support_agent.application.messages import retry_message
-from support_agent.application.ports import ChatModel, FunctionCall, ModelReply
-from support_agent.application.prompts import greeting_trigger
-from support_agent.application.recorder import ConversationRecorder
-from support_agent.application.sentiment import SentimentMonitor
-from support_agent.application.tools import ToolExecutor
+from screening_agent.application.messages import retry_message
+from screening_agent.application.ports import ChatModel, FunctionCall, ModelReply
+from screening_agent.application.prompts import greeting_trigger
+from screening_agent.application.recorder import ConversationRecorder
+from screening_agent.application.sentiment import SentimentMonitor
+from screening_agent.application.tools import ToolExecutor
 
 # Stops a model that keeps calling tools without ever answering the customer.
 MAX_TOOL_ROUNDS = 6
@@ -43,12 +43,12 @@ class TextAgent:
         self._reading: asyncio.Task[str | None] | None = None
 
     async def greet(self) -> AgentReply:
-        # The greeting trigger is an instruction, not customer speech, so it is not recorded.
-        trigger = greeting_trigger(self._recorder.language)
+        # The greeting trigger is an instruction, not candidate speech, so it is not recorded.
+        trigger = greeting_trigger(self._executor.session.job, self._recorder.language)
         return await self._run(await self._model.send_text(trigger))
 
     async def respond(self, user_text: str) -> AgentReply:
-        # The previous turn's reading had the customer's whole typing time to finish.
+        # The previous turn's reading had the candidate's whole typing time to finish.
         guidance = await self.wait_for_reading()
         turn_index = self._recorder.add_turn("user", user_text)
         # This turn's reading runs in the background, like in the voice channel,
@@ -68,7 +68,7 @@ class TextAgent:
                 break
             results: list[tuple[FunctionCall, dict[str, Any]]] = []
             for call in reply.function_calls:
-                outcome = self._executor.execute(call.name, call.arguments)
+                outcome = await self._executor.execute(call.name, call.arguments)
                 if outcome.closing_message is not None:
                     return self._say(outcome.closing_message, ended=True)
                 results.append((call, outcome.payload))

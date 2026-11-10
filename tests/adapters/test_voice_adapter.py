@@ -15,7 +15,7 @@ from pipecat.frames.frames import (
 )
 from pipecat.processors.frame_processor import FrameDirection
 
-from support_agent.adapters.inbound.voice import (
+from screening_agent.adapters.inbound.voice import (
     STT_LOCATION,
     STT_MODEL,
     VOICE_PROFILES,
@@ -28,9 +28,9 @@ from support_agent.adapters.inbound.voice import (
     session_language,
     stt_languages,
 )
-from support_agent.application.prompts import agent_note
-from support_agent.application.tools import TOOL_SPECS, ToolExecutor
-from support_agent.domain.models import Language
+from screening_agent.application.prompts import agent_note
+from screening_agent.application.tools import TOOL_SPECS
+from screening_agent.domain.models import Language
 
 
 class FakeLLM:
@@ -55,24 +55,26 @@ def test_tools_schema_lists_every_tool():
     assert [f.name for f in schema.standard_tools] == [s.name for s in TOOL_SPECS]
 
 
-async def test_handler_returns_result_to_llm(session):
+async def test_handler_returns_result_to_llm(executor):
     llm, results = FakeLLM(), []
-    handler = make_tool_handler(ToolExecutor(session))
-    await handler(make_params(llm, "lookup_order", {"order_number": "ORD-104233"}, results))
+    handler = make_tool_handler(executor)
+    await handler(
+        make_params(llm, "start_screening", {"candidate_name": "Lucia", "consent": True}, results)
+    )
     assert results[0][0]["ok"]
     assert results[0][1] is None
     assert llm.frames == []
 
 
-async def test_closing_tool_speaks_fixed_message_and_ends_call(session):
+async def test_closing_tool_speaks_fixed_message_and_ends_call(executor):
     llm, results, recorded = FakeLLM(), [], []
-    handler = make_tool_handler(ToolExecutor(session), on_closing=recorded.append)
+    handler = make_tool_handler(executor, on_closing=recorded.append)
     await handler(make_params(llm, "escalate_to_human", {"reason": "asked for a person"}, results))
     assert results[0][1].run_llm is False
     assert recorded == [llm.frames[0].text]
     speak, end = llm.frames
     assert isinstance(speak, TTSSpeakFrame)
-    assert "human agent" in speak.text
+    assert "recruiter" in speak.text
     assert isinstance(end, EndWorkerFrame)
 
 
@@ -80,7 +82,7 @@ class FixedMonitor:
     def __init__(self, guidance):
         self.guidance = guidance
 
-    async def observe(self, turn_index, customer_text):
+    async def observe(self, turn_index, candidate_text):
         return self.guidance
 
 
@@ -145,7 +147,7 @@ def test_every_language_has_a_matching_voice_profile(language):
     # The TTS voice and the STT language must use the same locale, e.g. es-US.
     assert profile.tts_voice.startswith(f"{profile.stt_language.value}-Chirp3-HD-")
     assert profile.stt_language.value.startswith(language.value)
-    assert any(hint["value"] == "ORD" for hint in profile.phrase_hints)
+    assert any(hint["value"] == "Harbor Logistics" for hint in profile.phrase_hints)
 
 
 @pytest.mark.parametrize(
@@ -211,7 +213,7 @@ async def test_switcher_follows_the_detected_language_before_the_words():
     switcher, switches, pushed = await run_switcher([words])
     assert switches == [Language.ES]
     assert switcher.language is Language.ES
-    # The voice change and the LLM note go before the customer's words.
+    # The voice change and the LLM note go before the candidate's words.
     assert [type(f) for f in pushed] == [
         TTSUpdateSettingsFrame,
         LLMMessagesAppendFrame,

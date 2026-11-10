@@ -5,13 +5,13 @@ from types import SimpleNamespace
 import pytest
 from google.genai import types
 
-from support_agent.adapters.outbound.gemini import (
+from screening_agent.adapters.outbound.gemini import (
     GeminiChatModel,
     GeminiSentimentAnalyzer,
     ThoughtTagStripper,
 )
-from support_agent.application.ports import FunctionCall
-from support_agent.domain.models import Turn
+from screening_agent.application.ports import FunctionCall
+from screening_agent.domain.models import Turn
 
 
 class FakeModels:
@@ -75,13 +75,13 @@ async def test_empty_candidate_returns_empty_reply():
     assert reply.function_calls == []
 
 
-async def test_instruction_is_sent_before_the_customer_text():
+async def test_instruction_is_sent_before_the_candidate_text():
     fake = FakeModels([model_response(types.Part(text="I understand."))])
     chat = GeminiChatModel(SimpleNamespace(aio=SimpleNamespace(models=fake)), "m", "p")
-    await chat.send_text("Where is my order?", instruction="Acknowledge the frustration.")
-    note, customer = fake.requests[0][0].parts
-    assert note.text.startswith("[Guidance for the agent, not said by the customer:")
-    assert customer.text == "Where is my order?"
+    await chat.send_text("When can I start?", instruction="Acknowledge the frustration.")
+    note, candidate = fake.requests[0][0].parts
+    assert note.text.startswith("[Guidance for the agent, not said by the candidate:")
+    assert candidate.text == "When can I start?"
 
 
 async def test_sentiment_analyzer_parses_structured_output():
@@ -130,7 +130,7 @@ def test_thought_text_before_a_tag_is_sent_at_once():
     assert stripper.feed("Sure. <thou") == "Sure. "
 
 
-async def test_open_tool_calls_are_answered_before_new_customer_text():
+async def test_open_tool_calls_are_answered_before_new_candidate_text():
     # The agent loop can stop at MAX_TOOL_ROUNDS with calls still open.
     open_call = types.Part(
         function_call=types.FunctionCall(id="call-9", name="review_ticket", args={})

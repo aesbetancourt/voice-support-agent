@@ -1,5 +1,5 @@
 [project]
-name = "support-agent"
+name = "screening-agent"
 version = "0.1.0"
 description = "Voice customer-support agent: Pipecat + Google Cloud STT/TTS + Gemini on Vertex AI"
 readme = "README.md"
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-support-agent = "support_agent.adapters.inbound.cli:main"
+screening-agent = "screening_agent.adapters.inbound.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12.0"]
@@ -48,4 +48,4 @@ ignore = ["ANN401"]
 # Tests use pytest fixtures and fakes; their signatures carry no contract.
 "tests/**" = ["ANN"]
 # The CLI writes the chat and the results to the terminal on purpose.
-"src/support_agent/adapters/inbound/cli.py" = ["T201"]
+"src/screening_agent/adapters/inbound/cli.py" = ["T201"]

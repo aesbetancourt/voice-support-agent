@@ -1,112 +1,105 @@
+from datetime import date
+
 import pytest
 
-from support_agent.domain.models import Category, Language, Urgency
-from support_agent.domain.validators import (
+from screening_agent.domain.models import Language, Requirement, Shift, Specificity
+from screening_agent.domain.validators import (
     language_switch,
-    normalize_order_number,
-    parse_category,
     parse_language,
-    parse_urgency,
-    validate_description,
+    parse_requirement,
+    parse_score,
+    parse_shifts,
+    parse_specificity,
+    parse_start_date,
+    parse_yes_no,
+    quote_in_words,
+    validate_name,
+    validate_summary,
 )
+
+TODAY = date(2026, 11, 10)
 
 
 @pytest.mark.parametrize(
-    "raw",
-    [
-        "ORD-104233",
-        "ord104233",
-        "ORD 104 233",
-        "O R D 1 0 4 2 3 3",
-        "or d 104233",
-        "104233",
-        "my order number is ORD-104233",
-        "o r d one zero four two three three",
-        "ORD one oh four two double three",
-    ],
-)
-def test_order_number_spoken_and_typed_forms(raw):
-    assert normalize_order_number(raw) == "ORD-104233"
+    ("raw", "expected"),
+    [(True, True), (False, False), ("yes", True), ("Sí", True), ("si, claro", True),
+     ("no", False), ("No, I don't", False), ("true", True)],
+)  # fmt: skip
+def test_yes_no(raw, expected):
+    assert parse_yes_no(raw) is expected
 
 
-@pytest.mark.parametrize("raw", ["", "12345", "ORD-99", "ORD-1042331", "ABC-104233", "hello"])
-def test_order_number_rejects_invalid_values(raw):
-    with pytest.raises(ValueError, match="ORD-123456"):
-        normalize_order_number(raw)
+def test_yes_no_rejects_other_answers():
+    with pytest.raises(ValueError, match="yes or no"):
+        parse_yes_no("maybe later")
 
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
-        ("shipping", Category.SHIPPING),
-        ("Product Defect", Category.PRODUCT_DEFECT),
-        ("return-refund", Category.RETURN_REFUND),
-        ("refund", Category.RETURN_REFUND),
-        ("damaged", Category.PRODUCT_DEFECT),
+        ("morning and afternoon", {Shift.MORNING, Shift.AFTERNOON}),
+        ("Mañanas y tardes", {Shift.MORNING, Shift.AFTERNOON}),
+        (["morning", "night"], {Shift.MORNING, Shift.NIGHT}),
+        ("any shift", set(Shift)),
+        ("cualquiera", set(Shift)),
+        ("none", set()),
     ],
 )
-def test_category_accepts_values_and_aliases(raw, expected):
-    assert parse_category(raw) is expected
+def test_shifts(raw, expected):
+    assert parse_shifts(raw) == expected
 
 
-def test_category_rejects_unknown_value():
-    with pytest.raises(ValueError, match="Allowed: shipping"):
-        parse_category("weather")
+def test_shifts_rejects_text_without_a_shift():
+    with pytest.raises(ValueError, match="names no shift"):
+        parse_shifts("whenever")
 
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
-    [("HIGH", Urgency.HIGH), ("urgent", Urgency.HIGH), ("normal", Urgency.MEDIUM)],
+    [("2026-11-20", date(2026, 11, 20)), ("immediately", TODAY), ("ya", TODAY), ("hoy", TODAY)],
 )
-def test_urgency_accepts_values_and_aliases(raw, expected):
-    assert parse_urgency(raw) is expected
+def test_start_date(raw, expected):
+    assert parse_start_date(raw, TODAY) == expected
 
 
-def test_urgency_rejects_unknown_value():
+def test_start_date_rejects_past_and_free_text():
+    with pytest.raises(ValueError, match="in the past"):
+        parse_start_date("2026-11-01", TODAY)
+    with pytest.raises(ValueError, match="YYYY-MM-DD"):
+        parse_start_date("next month", TODAY)
+
+
+def test_requirement_and_specificity():
+    assert parse_requirement("Work permit") is Requirement.WORK_PERMIT
+    assert parse_specificity("VAGUE") is Specificity.VAGUE
+    with pytest.raises(ValueError, match="Allowed"):
+        parse_requirement("salary")
+
+
+@pytest.mark.parametrize("raw", ["0", "5", "three", ""])
+def test_score_rejects_out_of_range(raw):
     with pytest.raises(ValueError):
-        parse_urgency("whenever")
+        parse_score(raw)
 
 
-def test_description_is_cleaned_and_length_checked():
-    assert validate_description("  The   screen is   cracked  ") == "The screen is cracked"
+def test_score_accepts_text_numbers():
+    assert parse_score("3") == 3
+
+
+def test_name_and_summary():
+    assert validate_name("  Lucía   Gómez ") == "Lucía Gómez"
+    with pytest.raises(ValueError):
+        validate_name("x")
     with pytest.raises(ValueError, match="too short"):
-        validate_description("broken")
-    assert len(validate_description("x" * 5000)) == 1000
+        validate_summary("ok")
 
 
-@pytest.mark.parametrize(
-    "raw",
-    [
-        "mi número de pedido es O R D uno cero cuatro dos tres tres",
-        "o erre de uno cero cuatro dos tres tres",
-        "ORD uno cero cuatro dos doble tres",
-        "Pedido: ORD-104233",
-        "NÚMERO ORD 104 233",
-    ],
-)
-def test_order_number_spanish_spoken_forms(raw):
-    assert normalize_order_number(raw) == "ORD-104233"
-
-
-@pytest.mark.parametrize(
-    ("raw", "expected"),
-    [
-        ("Envío", Category.SHIPPING),
-        ("dañado", Category.PRODUCT_DEFECT),
-        ("Devolución", Category.RETURN_REFUND),
-        ("factura", Category.BILLING),
-    ],
-)
-def test_category_accepts_spanish_aliases(raw, expected):
-    assert parse_category(raw) is expected
-
-
-@pytest.mark.parametrize(
-    ("raw", "expected"),
-    [("urgente", Urgency.HIGH), ("Media", Urgency.MEDIUM), ("baja", Urgency.LOW)],
-)
-def test_urgency_accepts_spanish_aliases(raw, expected):
-    assert parse_urgency(raw) is expected
+def test_quote_must_come_from_the_candidate():
+    said = ["Bueno, en el súper organicé al equipo por parejas y descargamos todo a tiempo."]
+    assert quote_in_words("organicé al equipo por parejas", said)
+    assert quote_in_words("organice al equipo por parejas", said)  # STT dropped the accent
+    assert not quote_in_words("lideré un equipo de veinte personas", said)
+    assert not quote_in_words("equipo", said)  # too short to prove anything
 
 
 @pytest.mark.parametrize(
@@ -132,13 +125,13 @@ def test_parse_language_rejects_unsupported():
 @pytest.mark.parametrize(
     ("current", "detected", "transcript", "expected"),
     [
-        (Language.EN, "es-US", "Hola, mis audífonos llegaron rotos", Language.ES),
-        (Language.ES, "en-US", "My headphones arrived broken", Language.EN),
-        (Language.EN, "en-US", "My headphones arrived broken", None),
+        (Language.EN, "es-US", "Hola, tengo permiso de trabajo", Language.ES),
+        (Language.ES, "en-US", "I have a work permit", Language.EN),
+        (Language.EN, "en-US", "I have a work permit", None),
         (Language.EN, "es-US", "Sí, gracias", None),
-        (Language.EN, "fr-FR", "Bonjour, mon casque est cassé", None),
-        (Language.EN, "", "Hola, mis audífonos llegaron rotos", None),
-        (Language.EN, None, "Hola, mis audífonos llegaron rotos", None),
+        (Language.EN, "fr-FR", "Bonjour, j'ai un permis de travail", None),
+        (Language.EN, "", "Hola, tengo permiso de trabajo", None),
+        (Language.EN, None, "Hola, tengo permiso de trabajo", None),
     ],
 )
 def test_language_switch(current, detected, transcript, expected):

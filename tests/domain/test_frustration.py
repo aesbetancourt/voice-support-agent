@@ -1,7 +1,7 @@
 import pytest
 
-from support_agent.domain.frustration import FrustrationPolicy, sentiment_from_peak
-from support_agent.domain.models import FrustrationAction, Sentiment
+from screening_agent.domain.frustration import FrustrationPolicy, sentiment_from_peak
+from screening_agent.domain.models import FrustrationAction, Sentiment
 
 NONE, ACK, OFFER = (
     FrustrationAction.NONE,

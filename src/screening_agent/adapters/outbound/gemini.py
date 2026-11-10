@@ -8,13 +8,13 @@ from typing import Any
 from google import genai
 from google.genai import types
 
-from support_agent.application.ports import FunctionCall, ModelReply
-from support_agent.application.prompts import agent_note
-from support_agent.application.sentiment import SENTIMENT_INSTRUCTION
-from support_agent.application.summary import SUMMARY_INSTRUCTION, summary_input
-from support_agent.application.tools import TOOL_SPECS
-from support_agent.config import AGENT_TEMPERATURE, Settings
-from support_agent.domain.models import (
+from screening_agent.application.ports import FunctionCall, ModelReply
+from screening_agent.application.prompts import agent_note
+from screening_agent.application.sentiment import SENTIMENT_INSTRUCTION
+from screening_agent.application.summary import SUMMARY_INSTRUCTION, summary_input
+from screening_agent.application.tools import TOOL_SPECS
+from screening_agent.config import AGENT_TEMPERATURE, Settings
+from screening_agent.domain.models import (
     ConversationRecord,
     SentimentDraft,
     Summary,
@@ -89,12 +89,12 @@ def strip_thought_tags(text: str) -> str:
     return stripper.feed(text) + stripper.flush()
 
 
-def make_client(settings: Settings) -> genai.Client:
+def make_client(settings: Settings, location: str | None = None) -> genai.Client:
     """Create a Vertex AI client. Auth uses Application Default Credentials."""
     return genai.Client(
         vertexai=True,
         project=settings.require_project(),
-        location=settings.location,
+        location=location or settings.location,
         http_options=types.HttpOptions(timeout=_TIMEOUT_MS, retry_options=_RETRY),
     )
 
@@ -220,9 +220,9 @@ class GeminiSentimentAnalyzer:
         self._client = client
         self._model = model
 
-    async def analyze(self, customer_text: str, recent_turns: list[Turn]) -> SentimentDraft:
+    async def analyze(self, candidate_text: str, recent_turns: list[Turn]) -> SentimentDraft:
         context = "\n".join(f"{turn.role}: {turn.text}" for turn in recent_turns) or "(none)"
-        prompt = f"Recent conversation:\n{context}\n\nLatest customer message:\n{customer_text}"
+        prompt = f"Recent conversation:\n{context}\n\nLatest candidate message:\n{candidate_text}"
         response = await self._client.aio.models.generate_content(
             model=self._model,
             contents=prompt,

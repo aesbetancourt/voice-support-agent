@@ -1,0 +1,21 @@
+{
+  "id": "harbor-wh-operator-getafe",
+  "company": "Harbor Logistics",
+  "title": "Warehouse Operator",
+  "site": "the Getafe logistics park, in Madrid",
+  "summary": "Full-time warehouse operator: picking and packing customer orders with a hand scanner, and loading trucks. Rotating morning and afternoon shifts, Monday to Friday.",
+  "required_shifts": ["morning", "afternoon"],
+  "max_start_days": 30,
+  "questions": [
+    {
+      "id": "teamwork",
+      "text": "Tell me about a time you had to finish work with a team under time pressure. What did you do?",
+      "looks_for": "A real situation, the candidate's own actions, how they worked with others, and the result."
+    },
+    {
+      "id": "safety",
+      "text": "Tell me about a time you noticed a safety risk or a mistake at work. What did you do about it?",
+      "looks_for": "A real situation, that the candidate acted or reported it, and that they put safety before speed."
+    }
+  ]
+}

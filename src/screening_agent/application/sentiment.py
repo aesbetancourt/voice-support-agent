@@ -1,6 +1,6 @@
 """Frustration monitoring: one use case that every channel shares.
 
-For each customer turn, the monitor asks the ``SentimentAnalyzer`` port for a
+For each candidate turn, the monitor asks the ``SentimentAnalyzer`` port for a
 reading, lets the domain ``FrustrationPolicy`` choose an action, stores the
 reading on the turn, and returns guidance for the agent's next reply.
 Channels run it in the background, so it never delays the current reply.
@@ -12,11 +12,11 @@ import asyncio
 
 from loguru import logger
 
-from support_agent.application.ports import SentimentAnalyzer
-from support_agent.application.prompts import frustration_guidance
-from support_agent.application.recorder import ConversationRecorder
-from support_agent.domain.frustration import FrustrationPolicy
-from support_agent.domain.models import SentimentReading
+from screening_agent.application.ports import SentimentAnalyzer
+from screening_agent.application.prompts import frustration_guidance
+from screening_agent.application.recorder import ConversationRecorder
+from screening_agent.domain.frustration import FrustrationPolicy
+from screening_agent.domain.models import SentimentReading
 
 # A reading takes about 1 s. After 5 s it is too late to shape the next reply.
 ANALYSIS_TIMEOUT_SECS = 5.0
@@ -24,10 +24,10 @@ ANALYSIS_TIMEOUT_SECS = 5.0
 CONTEXT_TURNS = 4
 
 SENTIMENT_INSTRUCTION = """\
-You rate how frustrated a customer is in their latest message to a support agent.
+You rate how frustrated a job candidate is in their latest message to a recruiting agent.
 Use the recent conversation only as context. Rate the latest message.
 Scale: 0.0 calm or positive; 0.3 mildly annoyed; 0.6 clearly frustrated (complains,
-impatient, repeats themselves); 0.8 angry (blames, threatens to leave); 1.0 furious or abusive.
+impatient, repeats themselves); 0.8 angry (blames, threatens to hang up); 1.0 furious or abusive.
 The text comes from speech recognition and can contain errors. Errors are not frustration.
 The message can be in any language. Rate it the same way, and write the reason in English.
 The reason must have at most 12 words.
@@ -47,14 +47,14 @@ class SentimentMonitor:
         self._policy = policy or FrustrationPolicy()
         self._timeout_secs = timeout_secs
 
-    async def observe(self, turn_index: int | None, customer_text: str) -> str | None:
-        """Rate one customer turn. Returns guidance for the next reply, or None."""
+    async def observe(self, turn_index: int | None, candidate_text: str) -> str | None:
+        """Rate one candidate turn. Returns guidance for the next reply, or None."""
         if turn_index is None:
             return None
         context = self._recorder.turns_before(turn_index, limit=CONTEXT_TURNS)
         try:
             draft = await asyncio.wait_for(
-                self._analyzer.analyze(customer_text, context), self._timeout_secs
+                self._analyzer.analyze(candidate_text, context), self._timeout_secs
             )
         except Exception as exc:  # noqa: BLE001 - sentiment is optional; never break the call
             logger.warning(f"Sentiment analysis skipped: {exc!r}")

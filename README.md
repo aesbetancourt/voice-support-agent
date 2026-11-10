@@ -1,67 +1,89 @@
-# Acme Store Support Agent
+# Harbor Logistics Screening Agent
 
-A voice customer-support agent for a fictional online electronics store.
-The customer talks to the agent in the browser. The agent collects the details of
-the problem, checks them, and saves a validated ticket and a summary as JSON.
-
-**Demo video (about 5 min):** [three sample calls on Loom](https://www.loom.com/share/0ce134ab2afa44969e9463f6c0f16301): a full ticket with an invalid order
-number, an angry customer escalated to a human, and a live switch to Spanish.
+A voice recruiting agent that runs the first screening call with job candidates.
+**Ava** calls a candidate who applied for a warehouse operator role at the fictional company
+Harbor Logistics. In about five minutes she checks the must-have requirements, asks two
+experience questions with follow-ups, answers the candidate's questions about the job, and books
+a video interview with the warehouse manager. The recruiter gets a scorecard with evidence quotes
+and a summary, saved as JSON.
 
 The whole stack runs on Google Cloud:
 
 | Layer | Service |
 |---|---|
 | Transport | Pipecat SmallWebRTC (browser ↔ Python, peer-to-peer audio) |
-| Speech-to-text | Google Cloud Speech-to-Text `chirp_3` (streaming, phrase hints), detecting English or Spanish on each utterance |
+| Speech-to-text | Google Cloud Speech-to-Text `chirp_3` (streaming), detecting English or Spanish on each utterance |
 | LLM | Gemini on Vertex AI (`gemini-3.5-flash` by default) |
+| Job knowledge (RAG) | Vertex AI embeddings (`gemini-embedding-001`), ranked in memory |
 | Text-to-speech | Google Cloud Text-to-Speech, Chirp 3 HD voices (`en-US`, `es-US`) |
 | Framework | [Pipecat](https://github.com/pipecat-ai/pipecat) 1.15 |
 
-The same agent also runs as a text chat in the terminal, for fast testing without audio.
+The same agent also runs as a text chat in the terminal, and against simulated candidates with an
+LLM judge, for fast testing without audio.
 
 New to Pipecat or to this codebase? Read [docs/how-it-works.md](docs/how-it-works.md) first.
-For the requirement checklist and what was added beyond the brief, see [docs/spec.md](docs/spec.md).
+Why the domain changed from customer support: [ADR-0010](docs/adr/0010-candidate-screening-domain.md).
 
-## What the agent collects
+## What happens in a call
 
-| Field | Validation |
-|---|---|
-| `order_number` | Normalized from spoken forms ("o r d one zero four…" → `ORD-104233`), then looked up in the order database |
-| `category` | `shipping`, `billing`, `product_defect`, `return_refund`, `account`, `other` (with aliases such as "refund", "damaged") |
-| `description` | 10 to 1000 characters, whitespace cleaned |
-| `urgency` | `low`, `medium`, `high` (aliases such as "urgent", "normal"). The agent infers it, then confirms it |
+```mermaid
+stateDiagram-v2
+    [*] --> consent
+    consent --> must_haves: candidate agrees
+    consent --> ended: candidate declines
+    must_haves --> experience: all four pass
+    must_haves --> not_eligible: a failed answer, read back and confirmed
+    experience --> scheduling: both questions assessed
+    scheduling --> booked: an offered slot is booked
+    must_haves --> escalated: asks for a person, or 3 invalid values
+    experience --> escalated: asks for a person
+    scheduling --> escalated: no time fits
+```
 
-The mock order database is in [`data/orders.json`](data/orders.json) (10 orders with different statuses).
+At any stage, the candidate can ask about the job, and Ava answers from the job information.
+The candidate can also withdraw (`ended`). A dropped call is saved as `abandoned`.
+
+| Stage | What Ava does | What the code checks |
+|---|---|---|
+| Consent | Says she is an AI, that a person makes every decision, and asks for consent | Nothing continues without consent |
+| Must-haves | Asks about work permit, shifts, start date and commute | Each answer against the job: required shifts, a start within 30 days. A failed answer must be read back and confirmed before it closes the call, because speech recognition can mishear |
+| Experience | Asks two behavioral questions (teamwork, safety) | A vague answer gets one follow-up. The evidence quote must appear in the candidate's own words. A still-vague answer cannot score above 2 of 4 |
+| Scheduling | Offers two or three free times | Only an offered slot can be booked |
+| Closing | Nothing: the code speaks | A fixed message with the time, the reference, or the reason the application stops |
+
+**What Ava never does:** say a score, an assessment, or whether an answer meets a requirement; ask
+about age, nationality, health, family or other protected topics; promise the job; invent a job
+detail. The simulator's LLM judge checks each of these.
+
+**The recommendation** (`advance`, `review`, `reject`) comes from fixed rules in the domain, not from
+Gemini. A recruiter makes the decision. Competency scores never block the booking: only objective
+must-haves end an application.
+
+## Job questions (RAG)
+
+The candidate can ask about pay, shifts, location, contract, training or benefits at any time.
+Ava calls `search_job_info`. The `JobKnowledge` port finds the matching pieces of
+[`data/job_knowledge.json`](data/job_knowledge.json) by embedding similarity, and Ava answers only
+from them. A question below the match threshold ("can I bring my dog?") goes on the scorecard as an
+open question for the recruiter, and Ava says that the recruiter will answer it.
+
+The index is built once per process, when the first call starts. The threshold (0.68) is measured:
+see [ADR-0011](docs/adr/0011-job-knowledge-with-embeddings.md).
 
 ## Frustration detection
 
-Each customer turn is rated for frustration from 0.0 to 1.0 by a small Gemini model
-(`gemini-3.5-flash-lite`). The rating runs in the background, so it never delays Ava's reply.
-A rule in the domain decides the reaction:
-
-| Readings | Ava's next reply |
-|---|---|
-| Below 0.7 | No change |
-| First reading ≥ 0.7 | Briefly acknowledges the frustration |
-| Two readings ≥ 0.7 in a row | Acknowledges it and offers a human agent (once per call) |
-
-Each reading is saved on its transcript turn (`sentiment`: score, reason, action), and the summary's
-`customer_sentiment` uses them. The full description is in [docs/features/frustration-detection.md](docs/features/frustration-detection.md),
-and [ADR-0007](docs/adr/0007-frustration-detection.md) records the options we compared.
+Each candidate turn is rated for frustration from 0.0 to 1.0 by a small Gemini model, in the
+background, so it never delays Ava's reply. A rule in the domain decides the reaction: the first
+high reading makes Ava acknowledge it, and two in a row make her offer a call back from a recruiter.
+See [docs/features/frustration-detection.md](docs/features/frustration-detection.md).
 
 ## Languages
 
-Ava speaks **English** or **Spanish**.
-
-- **Voice calls switch live.** Speech recognition detects the language of each utterance. When the customer
-  changes language, Ava changes her voice, her replies and her closing message on the same turn.
-- **Text chat and simulations** use one language, set with `--language es` or `DEFAULT_LANGUAGE` in `.env`.
-  In voice calls, these settings choose only the greeting language.
-
-Spanish uses the formal "usted". Tool results and the summary stay in English for the support team.
-See [docs/features/multi-language.md](docs/features/multi-language.md),
-[ADR-0008](docs/adr/0008-language-fixed-per-conversation.md) and
-[ADR-0009](docs/adr/0009-detect-the-language-in-voice-calls.md).
+Ava speaks **English** or **Spanish** (formal "usted"). In voice calls, she follows the language that
+speech recognition detects on each utterance. Text chat and simulations use `--language es`.
+The scorecard, the summary and the tool results stay in English for the recruiting team; the
+evidence quotes keep the candidate's own words. See
+[docs/features/multi-language.md](docs/features/multi-language.md).
 
 ## Setup
 
@@ -106,26 +128,18 @@ cp .env.example .env
 Set `GOOGLE_CLOUD_PROJECT` in `.env`. The other values have working defaults.
 See [`.env.example`](.env.example) for all settings.
 
-A service-account key also works: set `GOOGLE_APPLICATION_CREDENTIALS=/path/key.json`.
-The key needs the *Vertex AI User* and *Cloud Speech Client* roles.
-
 ## Run
 
 | Command | What it does |
 |---|---|
-| `uv run support-agent voice` | Starts the voice server. Open <http://localhost:7860> and click **Connect** |
-| `uv run support-agent chat` | Text chat in the terminal. Type `/quit` to leave |
-| `uv run support-agent simulate` | Runs seven simulated customers against the agent and prints PASS/FAIL |
+| `uv run screening-agent voice` | Starts the voice server. Open <http://localhost:7860> and click **Connect** |
+| `uv run screening-agent chat` | Text chat in the terminal. Type `/quit` to leave |
+| `uv run screening-agent simulate` | Runs eight simulated candidates, each checked by status and by an LLM judge |
 | `--language es` | Add it to `chat` or `simulate` to run the conversation in Spanish. On `voice`, it makes Ava greet in Spanish |
 | `uv run pytest` | Runs the unit and conversation tests (no network needed) |
 
-Example orders to try: `ORD-104233` (delivered headphones), `ORD-208871` (shipped monitor),
-`ORD-600118` (laptop still processing).
-
-Each conversation is saved to `conversations/<id>.json`.
-See [`examples/sample_conversation.json`](examples/sample_conversation.json) for the format.
-That sample is a real voice call: a wrong order number first, then a completed ticket, with a frustration
-reading on each customer turn and a summary written by Gemini.
+Each conversation is saved to `conversations/<id>.json`: the transcript with frustration readings,
+every tool call, the scorecard, and the summary.
 
 ## Architecture
 
@@ -133,31 +147,25 @@ The code follows **hexagonal architecture (ports and adapters)**. Dependencies p
 adapters depend on the application, the application depends on the domain, and the domain
 depends on nothing in the project. `tests/test_architecture.py` enforces this rule.
 
-![Architecture: inbound adapters, application core with ports, domain, outbound adapters and Google Cloud](docs/diagrams/architecture.png)
-
-> **Interactive version:** [open it in the browser](https://aesbetancourt.dev/voice-support-agent/diagrams/architecture.html). It is the same diagram as one standalone page
-> ([`docs/diagrams/architecture.html`](docs/diagrams/architecture.html)), with animated data flow, search, focus on a
-> component, a dark theme, and PNG/SVG export.
-> The diagram's source is [`docs/diagrams/architecture.json`](docs/diagrams/architecture.json), rendered with Archify.
-
 ```mermaid
 flowchart LR
     subgraph IN[Inbound adapters]
         CLI[cli.py]
         VOICE[voice.py<br/>Pipecat]
-        SIM[simulate.py]
+        SIM[simulate.py<br/>personas + LLM judge]
     end
     subgraph HEX[Application core]
         direction TB
         APP[application/<br/>tools, agent, recorder, summary, prompts]
-        PORTS[[ports.py<br/>OrderRepository, ConversationStore,<br/>ChatModel, Summarizer, SentimentAnalyzer]]
-        DOM[domain/<br/>TicketSession, validators, models]
+        PORTS[[ports.py<br/>JobKnowledge, InterviewCalendar, ConversationStore,<br/>ChatModel, Summarizer, SentimentAnalyzer]]
+        DOM[domain/<br/>ScreeningSession, validators, models]
         APP --> DOM
         APP --> PORTS
     end
     subgraph OUT[Outbound adapters]
-        GEM[gemini.py<br/>Vertex AI]
-        JO[json_orders.py]
+        GEM[gemini.py<br/>Vertex AI chat]
+        EMB[embeddings_knowledge.py<br/>Vertex AI embeddings]
+        CAL[mock_calendar.py]
         JS[json_store.py]
     end
     IN --> APP
@@ -165,185 +173,96 @@ flowchart LR
     BOOT[bootstrap.py<br/>composition root] -. wires .-> IN & OUT
 ```
 
-### Runtime view (voice)
-
-```mermaid
-flowchart LR
-    B[Browser<br/>Pipecat prebuilt UI] <-->|WebRTC audio| T
-    subgraph P[One Python process]
-        T[SmallWebRTC transport] --> STT[Google STT<br/>Chirp 3, en + es]
-        STT --> LS[LanguageSwitcher]
-        LS --> U[User aggregator<br/>Silero VAD]
-        U --> LLM[Gemini on Vertex AI]
-        LLM --> F[ThoughtTagFilter]
-        F --> TTS[Google TTS] --> T
-        LLM <-->|tool calls| Core
-    end
-    CLI[Text CLI<br/>GeminiChatModel] <-->|tool calls| Core
-    subgraph Core[Application + domain]
-        X[ToolExecutor] --> S[TicketSession<br/>state machine]
-        S --> V[Validators]
-        S --> O[(orders.json)]
-    end
-    Core --> R[ConversationRecorder] --> J[(conversations/*.json)]
-    R --> SUM[Summary<br/>Gemini structured output]
-```
-
-The voice server is one process. The Pipecat development runner serves the browser page and the
-WebRTC signaling endpoint. After the handshake, audio flows directly between the browser and the
-Python process. Each browser connection gets its own pipeline, ticket and record.
-`LanguageSwitcher` follows the language that STT detects (see Languages above). `ThoughtTagFilter` removes
-`<thought>` tags that Gemini sometimes writes as reply text, before TTS speaks them.
-
-### State machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> collecting
-    collecting --> confirming: review_ticket (all fields valid)
-    confirming --> collecting: customer corrects a field
-    confirming --> completed: finalize_ticket
-    collecting --> escalated: escalate_to_human, or 3 failures on one field
-    confirming --> escalated: escalate_to_human
-    collecting --> ended: end_conversation
-    confirming --> ended: end_conversation
-    completed --> [*]
-    escalated --> [*]
-    ended --> [*]
-```
-
-A dropped call or a closed chat while the ticket is open is saved as `abandoned`.
+A new provider is a new adapter. For example, Deepgram speech-to-text or ElevenLabs voices
+replace the Google services in `voice.py`, with no change to the domain or the tools.
 
 ### Tools the LLM can call
 
 | Tool | Effect |
 |---|---|
-| `lookup_order(order_number)` | Normalizes the number, finds the order, attaches it and the customer name to the ticket |
-| `update_ticket(category?, description?, urgency?)` | Partial update. Each field is validated separately. Returns rejected values, missing fields and warnings |
-| `review_ticket()` | Refused if a field is missing. Otherwise moves to `confirming` and returns the ticket to read back |
-| `finalize_ticket()` | Refused unless the stage is `confirming`. Creates the ticket ID and closes the conversation |
-| `escalate_to_human(reason)` | Closes the conversation as `escalated` |
-| `end_conversation(reason)` | Closes the conversation without a ticket |
+| `start_screening(candidate_name, consent)` | Starts the screening, or ends the call without consent |
+| `record_must_have(requirement, answer, confirmed?)` | Validates the answer against the job. A failure asks for a read-back first; a confirmed failure closes the call as `not_eligible` |
+| `record_answer(question_id, summary, evidence_quote, specificity, score)` | Checks the quote against the candidate's words. A vague answer gets one follow-up |
+| `search_job_info(question)` | Finds job information. No match: the question goes to the recruiter |
+| `get_interview_slots()` | Free times from the calendar port |
+| `book_interview(slot_id)` | Books an offered slot and closes the call with the time and reference |
+| `escalate_to_human(reason)` | A recruiter calls back |
+| `end_conversation(reason)` | The candidate withdraws |
 
 ### Project structure
 
 ```
-src/support_agent/
+src/screening_agent/
 ├── domain/                  # Pure business rules. Imports nothing from the project
-│   ├── models.py            # Pydantic models: Order, Ticket, ConversationRecord, Summary
-│   ├── validators.py        # Order-number normalizer, category/urgency parsers, description check
-│   ├── state.py             # TicketSession: the state machine and validation rules
-│   └── frustration.py       # FrustrationPolicy: readings → acknowledge / offer a human
+│   ├── models.py            # JobPosting, Scorecard, ConversationRecord, Summary
+│   ├── validators.py        # Yes/no, shifts, dates, scores, the evidence quote check
+│   ├── state.py             # ScreeningSession: the state machine and the recommendation
+│   └── frustration.py       # FrustrationPolicy: readings → acknowledge / offer a recruiter
 ├── application/             # Use cases. Depends on the domain and its own ports only
-│   ├── ports.py             # OrderRepository, ConversationStore, ChatModel, Summarizer, SentimentAnalyzer
-│   ├── tools.py             # Tool specs (SDK-neutral) and ToolExecutor
+│   ├── ports.py             # JobKnowledge, InterviewCalendar, ConversationStore, ChatModel, …
+│   ├── tools.py             # Tool specs (SDK-neutral) and the async ToolExecutor
 │   ├── agent.py             # TextAgent: the turn loop for text and simulations
 │   ├── recorder.py          # Transcript, tool calls, saves after each turn, final summary
-│   ├── summary.py           # Summary input, SafeSummarizer, rule-based fallback
-│   ├── sentiment.py         # SentimentMonitor: rates each customer turn in the background
-│   ├── prompts.py           # System prompt, with channel style and language rules
-│   └── messages.py          # Fixed closing messages for each language
+│   ├── summary.py           # Recruiter summary, with a rule-based fallback
+│   ├── sentiment.py         # SentimentMonitor: rates each candidate turn in the background
+│   ├── prompts.py           # System prompt: the call flow, the voice, the rules
+│   └── messages.py          # Fixed closing messages and spoken dates for each language
 ├── adapters/
-│   ├── inbound/             # Driving adapters: how customers and operators reach the app
-│   │   ├── cli.py           # support-agent chat | voice | simulate
-│   │   ├── voice.py         # Pipecat pipeline: WebRTC → STT → Gemini → TTS
-│   │   └── simulate.py      # Simulated customer personas
-│   └── outbound/            # Driven adapters: implementations of the ports
-│       ├── gemini.py        # Vertex AI client, GeminiChatModel, GeminiSummarizer
-│       ├── json_orders.py   # JsonOrderRepository
-│       └── json_store.py    # JsonConversationStore (atomic writes)
+│   ├── inbound/             # cli.py, voice.py (Pipecat), simulate.py (personas + judge)
+│   └── outbound/            # gemini.py, embeddings_knowledge.py, mock_calendar.py,
+│                            # json_job.py, json_store.py
 ├── bootstrap.py             # Composition root: wires adapters to ports
 └── config.py                # Settings from .env
-tests/                       # Mirrors the layers: domain/, application/, adapters/
-├── test_architecture.py     # Fails if a layer imports outward
-data/orders.json             # Mock orders
-docs/how-it-works.md         # Guided explanation of the system
+data/job.json                # The role: required shifts, start limit, experience questions
+data/job_knowledge.json      # Job information for RAG
 ```
 
 ## Key design decisions
 
-The main decisions, with the alternatives we rejected, are recorded as ADRs in [`docs/adr/`](docs/adr/):
-[0001 code owns the ticket state](docs/adr/0001-code-owns-the-ticket-state.md),
-[0002 Google Cloud only](docs/adr/0002-google-cloud-only-stack.md),
-[0003 cascaded pipeline](docs/adr/0003-cascaded-voice-pipeline.md),
-[0004 Pipecat in one process](docs/adr/0004-pipecat-single-process-webrtc.md),
-[0005 hexagonal architecture](docs/adr/0005-hexagonal-architecture.md),
-[0006 no Pipecat Flows](docs/adr/0006-own-state-machine-not-pipecat-flows.md),
-[0007 frustration detection](docs/adr/0007-frustration-detection.md),
-[0008 language per conversation](docs/adr/0008-language-fixed-per-conversation.md),
-[0009 live language switch in voice](docs/adr/0009-detect-the-language-in-voice-calls.md).
+The main decisions, with the alternatives we rejected, are recorded as ADRs in [`docs/adr/`](docs/adr/).
 
 | Decision | Reason |
 |---|---|
-| **Code decides completion, not the LLM** | The LLM proposes values through tool calls. `TicketSession` validates them and owns the stage. The LLM cannot finalize without a read-back, or skip a missing field. This makes the flow predictable and testable |
-| **Validation errors go back to the LLM** | A rejected value returns a short reason. The LLM tells the customer and asks again. After 3 failures on one field, the session escalates, so the customer is never stuck in a loop |
-| **Validation against data, not only format** | `lookup_order` checks that the order exists. It returns the order status, so the agent can use it ("your headphones were delivered on October 16"). A warning appears when the category does not fit the status, e.g. a defect on an undelivered order |
-| **Fixed closing messages** | When a conversation closes, the executor returns a fixed message with the ticket ID. Voice speaks it with `TTSSpeakFrame` and ends the call. The LLM does not run again, so it cannot invent a reference number |
-| **Hexagonal architecture** | The domain and application have no SDK imports. Gemini, Pipecat and the JSON files are adapters behind ports, so each can change without touching the rules. A test enforces the dependency direction |
-| **The domain receives a lookup function, not a repository** | `TicketSession` takes `find_order: Callable[[str], Order \| None]`. The domain stays free of any port or adapter import, and tests pass a plain function or dict lookup |
-| **One core, three inbound adapters** | Text, voice and simulations share the state machine, tools, recorder and storage. Only the LLM loop differs. The CLI gives a fast, cheap test loop, and the core is unit-tested without audio or network |
-| **Cascaded STT → LLM → TTS, not speech-to-speech** | Matches the brief (separate transcription and TTS). STT phrase hints improve order-number recognition. Each stage can be inspected and logged |
-| **All Google Cloud** | One vendor and one auth method (ADC). Pipecat has native Google STT, TTS and Vertex AI services |
-| **Spoken-form normalization in code** | STT writes order numbers in many ways ("OR D", "one oh four", "double three"). Deterministic normalization is cheaper and more reliable than asking the LLM to clean them |
-| **Save after every turn** | A crash or a dropped call keeps a partial record. Files are written atomically (temporary file + rename) |
-| **Summary with a fallback** | The summary uses Gemini structured output (a Pydantic schema). If the call fails, a rule-based summary is saved instead, so every record has one |
-| **Pipecat development runner** | It serves the prebuilt browser UI and WebRTC signaling, so there is no separate frontend build |
-
-### Error handling
-
-| Case | Behavior |
-|---|---|
-| Invalid or unknown value | Rejected with a reason; the agent asks again; logged in `validation_events` |
-| Same field fails 3 times | Automatic escalation to a human |
-| Customer corrects a value after the read-back | The confirmation is reset; the agent must read back again |
-| Gemini writes a `<thought>` tag as reply text | The tag is removed before TTS, the transcript and the record. A closed `<thought>…</thought>` block is dropped |
-| Off-topic input, garbled transcript | The prompt tells the agent to redirect, or to ask the customer to repeat |
-| Customer asks for a human, safety issue | `escalate_to_human` |
-| LLM calls tools in a loop (text channel) | Stopped after 6 rounds; the agent asks the customer to repeat |
-| Tool called after the conversation closed | Refused |
-| Gemini API errors (text channel, summaries) | Up to 3 attempts with backoff (`google-genai` retry options); then the chat stops and saves the record. In voice, Pipecat's Google services handle errors |
-| Summary call fails | Rule-based fallback summary |
-| Sentiment call fails or takes more than 5 s | The turn has no reading; the conversation continues normally |
-| Missing project or expired credentials | Clear message with the `gcloud` command to run |
-| Browser disconnects | Pipeline stops; the record is saved as `abandoned` with a summary |
+| **Code owns the outcome, not the LLM** | Gemini proposes values through tool calls. `ScreeningSession` validates them, decides the stage and calculates the recommendation. Gemini cannot book before the screening, or close on a failed must-have without a read-back |
+| **Evidence quotes are checked** | Every score points to the candidate's own words. The domain rejects a quote that is not in the transcript, so a recruiter can trust the scorecard |
+| **Silent assessment** | Ava never says a score or a requirement result. The fixed closing message gives the outcome, in the candidate's language |
+| **Fixed closing messages** | The booking time, the reference and the reason come from code. Voice speaks them with `TTSSpeakFrame` and ends the call. The LLM does not run again |
+| **RAG behind a port** | Job answers come only from the job information. A failed or empty search sends the question to the recruiter and never breaks the call |
+| **Hexagonal architecture** | The domain and application have no SDK imports. Gemini, Pipecat, the embeddings and the calendar are adapters behind ports. A test enforces the direction |
+| **One core, three inbound adapters** | Text, voice and simulations share the state machine, tools, recorder and storage |
+| **Cascaded STT → LLM → TTS** | Each stage can be inspected and logged, and each can change provider on its own |
 
 ## Testing
 
-- **`uv run pytest`** runs 155 tests in under a second, with no network. The folders mirror the layers:
-  - `tests/domain/`: validators (English and Spanish forms), every state-machine rule, and the frustration policy.
-  - `tests/application/`: the tool executor, the sentiment monitor (including failures and timeouts), the message catalog in every language, and full conversations through the agent loop with a scripted `ChatModel`.
-  - `tests/adapters/`: Gemini response parsing with a fake client, the voice tool handler, the voice guidance sender, the voice profiles for each language, and the live language switcher.
-  - `tests/test_architecture.py`: one check per file that the layer imports only inward.
-- **`uv run support-agent simulate`** runs Gemini as seven customer personas against the real agent:
-  cooperative, wrong order number first, correction during read-back, rambling, demands a human,
-  growing frustration (must be offered a human without asking), and never gives a valid order number. Each persona has an expected outcome, and the command
-  exits with code 1 if one fails. Use `--persona <name>` to run one, and `--language es` to run them in Spanish.
+- **`uv run pytest`** runs the tests in about a second, with no network. The folders mirror the layers:
+  - `tests/domain/`: every state-machine rule (consent, must-haves with read-back, follow-ups, quote check, booking, recommendation), the validators in English and Spanish, and the frustration policy.
+  - `tests/application/`: the tool executor (including a failed search), the messages in every language, and full calls through the agent loop with a scripted `ChatModel`.
+  - `tests/adapters/`: the RAG ranking and index with a fake embeddings client, the mock calendar, Gemini response parsing, and the voice handlers.
+- **`uv run screening-agent simulate`** runs Gemini as eight candidates against the real agent: strong,
+  vague then specific (needs a follow-up), no work permit, corrects a misheard start date, asks many
+  questions (one with no answer), wants a person, grows more frustrated (must be offered a
+  recruiter call back without asking), and tries to game the score. Each run passes only if
+  the final status is right **and** an LLM judge passes six criteria: natural tone, follow-ups, no
+  leaks, no protected topics, grounded job answers, and a faithful scorecard.
 
 ## Potential improvements
 
 | Area | Improvement |
 |---|---|
-| Speech | Use word confidence from Google STT to ask for a repeat before extraction. Add a custom phrase set with all valid order prefixes |
-| Sentiment | Add acoustic signals (tone, volume, speech rate) to the text-based frustration score. Tune the thresholds on real calls |
-| Latency | Measure time-to-first-audio per stage with Pipecat metrics. Try Gemini Live (speech-to-speech) on Vertex AI for lower latency, and compare extraction accuracy |
-| Knowledge (RAG) | Let Ava answer policy questions from a knowledge base of common issues, through a `KnowledgeBase` port and a Vertex AI RAG Engine adapter. Not part of this delivery: see [spec section 7](docs/spec.md#7-not-delivered-rag-over-a-knowledge-base) |
-| Identity | Verify the customer (email or postcode) against the order before sharing order details |
-| Conversation | Handle silence with a user-idle timeout. Support several problems in one call |
-| Languages | Add live switching to the text channel. Add a language selector to the browser client for the greeting. Add more languages (see the steps in the feature document) |
-| Data | Replace the JSON files with a database by adding a new `ConversationStore` adapter (Firestore or Cloud SQL). Send tickets to a real helpdesk (Zendesk, Jira). Keep the call audio for quality review |
-| Evaluation | Run the simulated customers in CI, add more personas, and score the summaries with an LLM judge. Add audio-level evals with `pipecat eval` |
-| Production | Split the signaling server and the bot workers, so heavy calls scale separately. Deploy on Cloud Run. Use a TURN server for restrictive networks. Add tracing and dashboards |
-| Security | Redact personal data in logs and records. Add a retention policy for conversation files |
+| Voice | Deepgram STT and ElevenLabs TTS as new adapters, for lower latency and a more natural voice |
+| Latency | Measure time-to-first-audio per stage with Pipecat metrics. Overlap the job search with a short filler phrase |
+| Product | A recruiter view of the scorecards. Several roles, each with its own questions and knowledge |
+| Calendar | Replace the mock with Google Calendar through the same port |
+| Evaluation | Run the simulator in CI. Track the judge results over time, and calibrate the judge on human-rated calls |
+| Compliance | Data retention and deletion for candidate records. A bias review of the scoring on real calls |
+| Production | Telephony (Twilio) as a new transport. Deploy on Cloud Run. Tracing and dashboards |
 
 ## Known limitations
 
 - The voice channel and the live Gemini calls need a configured GCP project with the three APIs enabled.
   The offline tests use fakes for every Google service.
-- The browser client is Pipecat's generic prebuilt UI. It shows a camera button and a bot video area that
-  this audio-only agent does not use. The UI cannot hide them without a custom client.
-- Gemini can still write a short announcement of its own just before a transfer, next to the fixed
-  closing message. The prompt forbids it, but a prompt rule is not a guarantee.
-- The default model is `gemini-3.5-flash`, not Pipecat's default `gemini-3.8-flash`. In a measurement on
-  the `global` endpoint, 3.8 Flash took 2 to 20 seconds per model round, and a voice turn with a tool call
-  needs two rounds. 3.5 Flash took about 0.8 seconds per round and passed all simulated customers in both
-  languages. If your project does not have it, set `GEMINI_MODEL` to a model that Vertex AI Model Garden lists.
+- The browser client is Pipecat's generic prebuilt UI. It shows a camera button that this audio-only
+  agent does not use.
+- Each job question adds one tool round trip (about 0.5 to 1.5 s) in a voice call.
+- Gemini rates the experience answers. The domain bounds the scores (follow-ups, the quote check, the
+  cap for vague answers), but the rating itself is a model judgment, not a fixed rule.
